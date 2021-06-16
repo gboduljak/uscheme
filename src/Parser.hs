@@ -84,54 +84,54 @@ number = Number <$> (try radix2 <|> try radix8 <|> try radix16 <|> try radix10)
       read <$> many1 digit
 
 expr :: Parser LispVal
-expr =
-  list
-    <|> try vector
-    <|> try number
-    <|> try boolean
-    <|> string
-    <|> atom
+expr = (spaces >> exprWithoutWhitespace) <|> exprWithoutWhitespace
+
+exprWithoutWhitespace :: Parser LispVal
+exprWithoutWhitespace = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp
+  where
+    quotedExpr = do
+      char '\''
+      x <- expr
+      return (List [Atom "quote", x])
+    quasiQuotedExpr = do
+      char '`'
+      x <- expr
+      return (List [Atom "quasiquote", x])
+    commaExpr = do
+      char ','
+      x <- expr
+      return (List [Atom "unquote", x])
+    ordinaryExp = do
+      list
+        <|> try vector
+        <|> try number
+        <|> try boolean
+        <|> string
+        <|> atom
 
 vector :: Parser LispVal
 vector = do
   char '#'
   char '('
-  optional spaces
-  vec <- Vector <$> sepEndBy expr spaces
+  vec <- Vector <$> sepEndBy expr (optional spaces)
   char ')'
   return vec
 
 list :: Parser LispVal
-list = do nonQuotedList <|> quotedList
+list = do
+  char '('
+  xs <- sepEndBy expr (optional spaces)
+  nonDotted xs <|> dotted xs
   where
-    quotedList =
+    nonDotted :: [LispVal] -> Parser LispVal
+    nonDotted xs = do
+      char ')'
+      return (List xs)
+    dotted :: [LispVal] -> Parser LispVal
+    dotted xs =
       do
-        char '\''
-        optional spaces
+        char '.'
         x <- expr
-        return (List [Atom "quote", x])
-    nonQuotedList =
-      do
-        char '('
         optional spaces
-        xs <- sepEndBy expr spaces
-        nonDotted xs <|> dotted xs
-      where
-        nonDotted :: [LispVal] -> Parser LispVal
-        nonDotted xs = do
-          char ')'
-          return (List xs)
-        dotted xs =
-          do
-            char '.'
-            x <- spaces >> expr
-            many spaces
-            char ')'
-            return (DottedList xs x)
-
-spaced :: Parser a -> Parser a
-spaced p = do
-  spaces
-  x <- p
-  spaces
-  return x
+        char ')'
+        return (DottedList xs x)
