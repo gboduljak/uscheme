@@ -16,6 +16,8 @@ import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces, string, symbol, token)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
+-- Todo: Lex tokens to support more valid Scheme
+
 spaces :: Parser ()
 spaces = skipMany1 space
 
@@ -84,21 +86,21 @@ number = Number <$> (try radix2 <|> try radix8 <|> try radix16 <|> try radix10)
       read <$> many1 digit
 
 expr :: Parser LispVal
-expr = (spaces >> exprWithoutWhitespace) <|> exprWithoutWhitespace
-
-exprWithoutWhitespace :: Parser LispVal
-exprWithoutWhitespace = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp
+expr = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp
   where
     quotedExpr = do
       char '\''
+      optional spaces
       x <- expr
       return (List [Atom "quote", x])
     quasiQuotedExpr = do
       char '`'
+      optional spaces
       x <- expr
       return (List [Atom "quasiquote", x])
     commaExpr = do
       char ','
+      optional spaces
       x <- expr
       return (List [Atom "unquote", x])
     ordinaryExp = do
@@ -113,14 +115,16 @@ vector :: Parser LispVal
 vector = do
   char '#'
   char '('
-  vec <- Vector <$> sepEndBy expr (optional spaces)
+  optional spaces
+  vec <- Vector <$> sepEndBy expr spaces
   char ')'
   return vec
 
 list :: Parser LispVal
 list = do
   char '('
-  xs <- sepEndBy expr (optional spaces)
+  optional spaces
+  xs <- sepEndBy expr spaces
   nonDotted xs <|> dotted xs
   where
     nonDotted :: [LispVal] -> Parser LispVal
@@ -131,6 +135,7 @@ list = do
     dotted xs =
       do
         char '.'
+        optional spaces
         x <- expr
         optional spaces
         char ')'

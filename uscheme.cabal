@@ -28,6 +28,7 @@ library
       Ast
       Lib
       Parser
+      Parser2
   other-modules:
       Paths_uscheme
   hs-source-dirs:
