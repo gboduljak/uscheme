@@ -1,11 +1,12 @@
 {-# LANGUAGE BlockArguments #-}
 
 module Parser
-  ( symbol,
-    spaces,
+  ( spaces,
     string,
     atom,
     expr,
+    list,
+    number,
   )
 where
 
@@ -15,21 +16,16 @@ import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces, string, symbol, token)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
-symbol :: Parser Char
-symbol = oneOf "!$%&|*+-/:<=?>@^_~#"
-
 spaces :: Parser ()
-spaces = skipMany space
+spaces = skipMany1 space
 
 string :: Parser LispVal
 string =
-  ( do
-      char '"'
-      x <- many (escapedCharacter <|> simpleCharacter)
-      char '"'
-      return (String x)
-  )
-    <?> "string"
+  do
+    char '"'
+    x <- many (escapedCharacter <|> simpleCharacter)
+    char '"'
+    return (String x)
   where
     escapedCharacter = do
       char '\\'
@@ -45,22 +41,30 @@ string =
 
 atom :: Parser LispVal
 atom =
-  ( do
-      first <- letter <|> symbol
-      rest <- many (letter <|> symbol <|> digit)
-      let atom = first : rest
-      return
-        ( case atom of
-            "#t" -> Bool True
-            "#f" -> Bool False
-            _ -> Atom atom
-        )
-  )
-    <?> "atom"
+  do
+    first <- initial
+    rest <- many subsequent
+    return (Atom (first : rest))
+  where
+    initial :: Parser Char
+    initial = letter <|> oneOf "!$%&*/:<=>?-_^"
+    subsequent = initial <|> digit <|> oneOf ".+-"
+
+boolean :: Parser LispVal
+boolean = do
+  char '#'
+  true <|> false
+  where
+    true = do
+      char 't'
+      return (Bool True)
+    false = do
+      char 'f'
+      return (Bool False)
 
 --todo
 number :: Parser LispVal
-number = Number <$> (radix2 <|> radix8 <|> radix16 <|> radix10)
+number = Number <$> (try radix2 <|> try radix8 <|> try radix16 <|> try radix10)
   where
     radix2 :: Parser Integer
     radix2 = do
@@ -81,58 +85,53 @@ number = Number <$> (radix2 <|> radix8 <|> radix16 <|> radix10)
 
 expr :: Parser LispVal
 expr =
-  ( number
-      <|> string
-      <|> atom
-      <|> list
-  )
-    <?> "expression"
+  list
+    <|> try vector
+    <|> try number
+    <|> try boolean
+    <|> string
+    <|> atom
+
+vector :: Parser LispVal
+vector = do
+  char '#'
+  char '('
+  optional spaces
+  vec <- Vector <$> sepEndBy expr spaces
+  char ')'
+  return vec
 
 list :: Parser LispVal
-list = nonQuoted <|> quoted
+list = do nonQuotedList <|> quotedList
   where
-    quoted =
-      ( do
-          char '\''
-          x <- expr
-          return (List [Atom "quote", x])
-      )
-        <?> "quoted list"
-
-    nonQuoted =
+    quotedList =
+      do
+        char '\''
+        optional spaces
+        x <- expr
+        return (List [Atom "quote", x])
+    nonQuotedList =
       do
         char '('
-        (isDotted, head) <- arguments
-        if isDotted
-          then
-            ( do
-                tail <- argument
-                char ')'
-                return (DottedList head tail)
-            )
-              <?> "dotted list"
-          else
-            ( do
-                char ')'
-                return (List head)
-            )
-              <?> "list"
+        optional spaces
+        xs <- sepEndBy expr spaces
+        nonDotted xs <|> dotted xs
+      where
+        nonDotted :: [LispVal] -> Parser LispVal
+        nonDotted xs = do
+          char ')'
+          return (List xs)
+        dotted xs =
+          do
+            char '.'
+            x <- spaces >> expr
+            many spaces
+            char ')'
+            return (DottedList xs x)
 
-    arguments =
-      ( do
-          xs <- manyTill argument (lookAhead (char '.' <|> char ')'))
-          look <- lookAhead (char '.' <|> char ')')
-          if look == '.'
-            then char '.' >> do return (True, xs)
-            else return (False, xs)
-      )
-        <?> "arguments"
-
-    argument =
-      ( do
-          spaces
-          x <- expr
-          spaces
-          return x
-      )
-        <?> "argument"
+spaced :: Parser a -> Parser a
+spaced p = do
+  spaces
+  x <- p
+  spaces
+  return x

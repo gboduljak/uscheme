@@ -1,2 +1,8 @@
+import Book (bookSpec)
+import Test.Hspec
+import Toys (toysSpec)
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = do
+  hspec toysSpec
+  hspec bookSpec
