@@ -1,7 +1,7 @@
 module Book (bookSpec) where
 
 import Ast (LispVal (..))
-import Evaluator (eval)
+import Evaluator (LispError (..), performEvalEmpty)
 import Helpers (fails)
 import Parser (expr)
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -24,11 +24,13 @@ bookSpec = do
       fails (Parsec.parse expr "" " ( a' (imbalanced parens)") `shouldBe` True
   describe "eval primitives" $ do
     it "should eval primitive 1" $ do
-      Evaluator.eval (getVal $ Parsec.parse expr "" "(+ 2 2)") `shouldBe` (Number 4)
+      performEvalEmpty (getVal $ Parsec.parse expr "" "(+ 2 2)") `shouldBe` (Right (Number 4))
     it "should eval primitive 2" $ do
-      Evaluator.eval (getVal $ Parsec.parse expr "" "(+ 2 (- 4 1))") `shouldBe` (Number 5)
+      performEvalEmpty (getVal $ Parsec.parse expr "" "(+ 2 (- 4 1))") `shouldBe` (Right (Number 5))
     it "should eval primitive 3" $ do
-      Evaluator.eval (getVal $ Parsec.parse expr "" "(- (+ 4 6 3) 3 5 2)") `shouldBe` (Number 3)
+      performEvalEmpty (getVal $ Parsec.parse expr "" "(- (+ 4 6 3) 3 5 2)") `shouldBe` (Right (Number 3))
+    it "should fail to eval primitive 4" $ do
+      performEvalEmpty (getVal $ Parsec.parse expr "" "(+ 2 \"two\")") `shouldBe` (Left (TypeMismatch "number" (String "two")))
   where
     getVal (Left _) = error ""
     getVal (Right val) = val

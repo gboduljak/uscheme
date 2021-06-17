@@ -6,7 +6,7 @@ where
 
 import Ast
 import Data.Char
-import Evaluator (eval)
+import Evaluator (performEvalEmpty)
 import Parser (expr)
 import qualified Text.Parsec as Parsec (parse)
 import Text.Parsec.Token
@@ -17,7 +17,7 @@ parse = Parsec.parse expr ""
 
 parseAndEval :: String -> String
 parseAndEval xs = case parseResult of
-  (Right val) -> (show . eval) val
-  (Left parseError) -> show parseError
+  (Right val) -> (show . performEvalEmpty) val
+  (Left error) -> show error
   where
     parseResult = Lib.parse xs
