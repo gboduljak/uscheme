@@ -1,44 +1,23 @@
 module Lib
-  ( someFunc,
-    nestedInteger,
+  ( Lib.parse,
+    parseAndEval,
   )
 where
 
+import Ast
 import Data.Char
+import Evaluator (eval)
+import Parser (expr)
+import qualified Text.Parsec as Parsec (parse)
 import Text.Parsec.Token
 import Text.ParserCombinators.Parsec
 
-data NestedInteger = Simple Int | Nested [NestedInteger] deriving (Show)
+parse :: String -> Either ParseError LispVal
+parse = Parsec.parse expr ""
 
-nestedInteger :: Parser NestedInteger
-nestedInteger = simple <|> nested
+parseAndEval :: String -> String
+parseAndEval xs = case parseResult of
+  (Right val) -> (show . eval) val
+  (Left parseError) -> show parseError
   where
-    simple = do Simple <$> number
-    nested = do
-      item (char '[')
-      ns <- nestedInteger `sepBy` item (char ',')
-      item (char ']')
-      return (Nested ns)
-
-number :: Parser Int
-number = negative <|> positive
-  where
-    positive = do
-      xs <- many1 (digitToInt <$> item (satisfy isDigit))
-      return (asInt xs)
-    negative = do
-      item (char '-')
-      positive
-
-    asInt :: [Int] -> Int
-    asInt xs = sum [(10 ^ p) * x | (p, x) <- zip [0 ..] (reverse xs)]
-
-item :: Parser a -> Parser a
-item p = do
-  many (satisfy isSpace)
-  x <- p
-  many (satisfy isSpace)
-  return x
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+    parseResult = Lib.parse xs

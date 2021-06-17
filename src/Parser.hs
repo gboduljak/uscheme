@@ -13,10 +13,26 @@ where
 import Ast
 import Data.Char
 import Numeric
+import Text.Parsec.Language
+import qualified Text.Parsec.Token as P
 import Text.ParserCombinators.Parsec hiding (spaces, string, symbol, token)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
 -- Todo: Lex tokens to support more valid Scheme
+lispDef :: LanguageDef ()
+lispDef =
+  emptyDef
+    { P.commentStart = "#|",
+      P.commentEnd = "|#",
+      P.commentLine = ";",
+      P.nestedComments = True,
+      P.identStart = letter <|> tokenInitial,
+      P.identLetter = tokenInitial <|> digit <|> oneOf ".+-",
+      P.reservedNames = [],
+      P.caseSensitive = True
+    }
+  where
+    tokenInitial = oneOf "!$%&*/:<=>?-_^"
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -42,15 +58,17 @@ string =
     simpleCharacter = noneOf "\""
 
 atom :: Parser LispVal
-atom =
-  do
-    first <- initial
-    rest <- many subsequent
-    return (Atom (first : rest))
+atom = symbol <|> plus <|> minus <|> try ellipsis
   where
-    initial :: Parser Char
+    symbol = do
+      first <- initial
+      rest <- many subsequent
+      return (Atom (first : rest))
     initial = letter <|> oneOf "!$%&*/:<=>?-_^"
     subsequent = initial <|> digit <|> oneOf ".+-"
+    plus = do char '+'; return (Atom "+")
+    minus = do char '-'; return (Atom "-")
+    ellipsis = do Parsec.string "..."; return (Atom "...")
 
 boolean :: Parser LispVal
 boolean = do

@@ -29,6 +29,8 @@ library:
   exposed-modules:
     - Lib
     - Parser
+    - Evaluator
+    - Ast
 library:
   source-dirs: src
 

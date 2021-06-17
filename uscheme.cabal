@@ -26,9 +26,9 @@ source-repository head
 library
   exposed-modules:
       Ast
+      Evaluator
       Lib
       Parser
-      Parser2
   other-modules:
       Paths_uscheme
   hs-source-dirs:
