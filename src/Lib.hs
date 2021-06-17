@@ -10,7 +10,7 @@ import Evaluator (performEvalEmpty)
 import Parser (expr)
 import qualified Text.Parsec as Parsec (parse)
 import Text.Parsec.Token
-import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec (ParseError)
 
 parse :: String -> Either ParseError LispVal
 parse = Parsec.parse expr ""

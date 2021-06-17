@@ -26,12 +26,15 @@ source-repository head
 library
   exposed-modules:
       Ast
+      EvalMonad
       Evaluator
-      HuskParser
+      Evaluators.ExpToolkit
+      Evaluators.ListPrimitives
+      Evaluators.StringPrimitives
+      Lexer
       Lib
+      LispError
       Parser
-      ToyMonads
-      WespiserParser
   other-modules:
       Paths_uscheme
   hs-source-dirs:

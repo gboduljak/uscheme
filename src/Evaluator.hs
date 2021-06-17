@@ -3,38 +3,24 @@
 module Evaluator (performEvalEmpty, LispError (..)) where
 
 import Ast (LispVal (..))
-import Control.Monad.Except
-  ( ExceptT,
-    MonadError (throwError),
-    runExceptT,
-  )
-import Control.Monad.Reader
-import Data.Functor
+import Control.Monad.Except (MonadError (throwError), runExceptT)
+import Control.Monad.Reader (runReader)
+import Data.Functor ((<&>))
+import qualified Data.List as List (reverse)
 import qualified Data.Map as Map (Map, empty, fromList, lookup, map)
+import EvalMonad (EvalMonad (..), VariablesEnv (..))
+import Evaluators.ExpToolkit
+  ( applyNumericBinOp,
+    applyPredicate,
+    applyUnaryOp,
+    unpackBool,
+    unpackNum,
+    unpackStr,
+  )
+import Evaluators.ListPrimitives (listPrimitives)
+import Evaluators.StringPrimitives (stringPrimitives)
+import LispError (LispError (..))
 import Text.Parsec
-
-data LispError
-  = NumArgs Integer [LispVal]
-  | TypeMismatch String LispVal
-  | BadSpecialForm String LispVal
-  | NotFunction String String
-  | UnboundVar String String
-  | ParserError ParseError
-  | Default String
-  deriving (Eq)
-
-instance Show LispError where
-  show (NumArgs expected found) = "Expected " ++ show expected ++ " args: found values " ++ unwords (map show found)
-  show (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ " , found " ++ show found
-  show (BadSpecialForm message form) = message ++ " : " ++ show form
-  show (NotFunction message func) = message ++ " : " ++ show func
-  show (UnboundVar message var) = message ++ " : " ++ var
-  show (ParserError error) = show error
-  show (Default error) = error
-
-type VariablesEnv = Map.Map String LispVal
-
-type EvalWithEnvAndExcept a = ExceptT LispError (Reader VariablesEnv) a
 
 dummyVariablesEnv :: VariablesEnv
 dummyVariablesEnv = Map.empty
@@ -45,16 +31,38 @@ performEvalEmpty expr = performEval expr dummyVariablesEnv
 performEval :: LispVal -> VariablesEnv -> Either LispError LispVal
 performEval expr = runReader $ runExceptT (eval expr)
 
-type NumericBinOp = (Integer -> Integer -> Integer)
-
-type LispValUnaryOp = (LispVal -> LispVal)
-
-eval :: LispVal -> EvalWithEnvAndExcept LispVal
+eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
+eval (List [Atom "if", pred, conseq, alt]) = do
+  evaledPred <- eval pred
+  case evaledPred of
+    (Bool False) -> eval alt
+    (Bool True) -> eval conseq
+    _ -> throwError (TypeMismatch "bool" evaledPred)
+eval expr@(List [Atom "if", pred, conseq]) = do
+  evaledPred <- eval pred
+  case evaledPred of
+    (Bool True) -> eval conseq
+    (Bool False) -> throwError (BadSpecialForm "no viable alternative in if clause: " expr)
+    _ -> throwError (TypeMismatch "bool" evaledPred)
+eval (List (Atom "cond" : clauses)) = cond clauses
+eval expr@(List (Atom "case" : key : clauses)) = do
+  if null clauses
+    then throwError $ BadSpecialForm "no viable clause in case expression: " expr
+    else case head clauses of
+      List (Atom "else" : exprs) -> mapM eval exprs <&> last
+      List ((List datum) : exprs) -> do
+        evaledKey <- eval key
+        matches <- mapM (\x -> eqv [evaledKey, x]) datum
+        if Bool True `elem` matches
+          then mapM eval exprs <&> last
+          else return eval expr (List (Atom "case" : key : tail clauses))
+      _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
+eval (List (Atom "begin" : exprs)) = mapM eval exprs <&> last
 eval (List (Atom func : args)) = do
   case Map.lookup func primitives of
     (Just funcImpl) -> do
@@ -63,33 +71,41 @@ eval (List (Atom func : args)) = do
     Nothing -> throwError (NotFunction "Unrecognised primitive function " func)
 eval badForm = throwError (BadSpecialForm "Unrecognized special form " badForm)
 
-apply :: ([LispVal] -> EvalWithEnvAndExcept LispVal) -> [LispVal] -> EvalWithEnvAndExcept LispVal
+apply :: ([LispVal] -> EvalMonad LispVal) -> [LispVal] -> EvalMonad LispVal
 apply func = func
 
-primitives :: Map.Map String ([LispVal] -> EvalWithEnvAndExcept LispVal)
+primitives :: Map.Map String ([LispVal] -> EvalMonad LispVal)
 primitives =
   Map.fromList
-    [ ("+", applyNumericBinOp (+)),
-      ("-", applyNumericBinOp (-)),
-      ("*", applyNumericBinOp (*)),
-      ("/", applyNumericBinOp div),
-      ("mod", applyNumericBinOp mod),
-      ("quotient", applyNumericBinOp quot),
-      ("remainder", applyNumericBinOp rem),
-      ("symbol?", applyLispValUnaryOp isSymbol),
-      ("string?", applyLispValUnaryOp isString),
-      ("number?", applyLispValUnaryOp isNumber),
-      ("bool?", applyLispValUnaryOp isBool),
-      ("list?", applyLispValUnaryOp isList)
-    ]
+    ( [ ("+", applyNumericBinOp (+)),
+        ("-", applyNumericBinOp (-)),
+        ("*", applyNumericBinOp (*)),
+        ("/", applyNumericBinOp div),
+        ("mod", applyNumericBinOp mod),
+        ("quotient", applyNumericBinOp quot),
+        ("remainder", applyNumericBinOp rem),
+        ("symbol?", applyUnaryOp isSymbol),
+        ("number?", applyUnaryOp isNumber),
+        ("bool?", applyUnaryOp isBool),
+        ("=", applyPredicate unpackNum (==)),
+        ("<", applyPredicate unpackNum (<)),
+        (">", applyPredicate unpackNum (>)),
+        ("<=", applyPredicate unpackNum (<=)),
+        (">=", applyPredicate unpackNum (>=)),
+        ("/=", applyPredicate unpackNum (/=)),
+        ("&&", applyPredicate unpackBool (&&)),
+        ("||", applyPredicate unpackBool (||)),
+        ("eqv?", eqv),
+        ("eq?", eqv),
+        ("equal?", eqv)
+      ]
+        ++ listPrimitives
+        ++ stringPrimitives
+    )
 
 isSymbol :: LispVal -> LispVal
 isSymbol (Atom _) = Bool True
 isSymbol _ = Bool False
-
-isString :: LispVal -> LispVal
-isString (Atom _) = Bool True
-isString _ = Bool False
 
 isNumber :: LispVal -> LispVal
 isNumber (Number _) = Bool True
@@ -99,21 +115,28 @@ isBool :: LispVal -> LispVal
 isBool (Bool _) = Bool True
 isBool _ = Bool False
 
-isList :: LispVal -> LispVal
-isList (List _) = Bool True
-isList (DottedList _ _) = Bool True
-isList _ = Bool False
+eqv :: [LispVal] -> EvalMonad LispVal
+eqv [(Bool arg1), (Bool arg2)] = return (Bool (arg1 == arg2))
+eqv [(Number arg1), (Number arg2)] = return (Bool (arg1 == arg2))
+eqv [(String arg1), (String arg2)] = return (Bool (arg1 == arg2))
+eqv [(Atom arg1), (Atom arg2)] = return (Bool (arg1 == arg2))
+eqv [(DottedList xs x), (DottedList ys y)] = eqv [List (xs ++ [x]), List (ys ++ [y])]
+eqv [(List xs), (List ys)] =
+  if length xs /= length ys
+    then return (Bool False)
+    else do
+      pairsEq <- mapM eqv [[x, y] | (x, y) <- zip xs ys]
+      allPairsEq <- mapM unpackBool pairsEq
+      return (Bool (and allPairsEq))
 
-unaryOp :: (LispVal -> LispVal) -> [LispVal] -> EvalWithEnvAndExcept LispVal
-unaryOp f [v] = return (f v)
-unaryOp f args = throwError (NumArgs 1 args)
-
-applyNumericBinOp :: NumericBinOp -> [LispVal] -> EvalWithEnvAndExcept LispVal
-applyNumericBinOp op args = mapM unpackNum args <&> Number . foldl1 op
-  where
-    unpackNum :: LispVal -> EvalWithEnvAndExcept Integer
-    unpackNum (Number x) = return x
-    unpackNum notNum = throwError (TypeMismatch "number" notNum)
-
-applyLispValUnaryOp :: LispValUnaryOp -> [LispVal] -> EvalWithEnvAndExcept LispVal
-applyLispValUnaryOp = undefined
+cond :: [LispVal] -> EvalMonad LispVal
+cond [List [Atom "else", value]] = eval value
+cond ((List [condition, value]) : alts) = do
+  condPred <- eval condition
+  case condPred of
+    (Bool True) -> eval value
+    (Bool False) -> cond alts
+    _ -> throwError $ Default "Cond predicate evaluated to a non bool value."
+cond ((List a) : _) = throwError $ NumArgs 2 a
+cond (a : _) = throwError $ NumArgs 2 [a]
+cond _ = throwError $ Default "Not viable alternative in cond"
