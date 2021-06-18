@@ -35,6 +35,7 @@ library
       Lib
       LispError
       Parser
+      Utils.List
   other-modules:
       Paths_uscheme
   hs-source-dirs:

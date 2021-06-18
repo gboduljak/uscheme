@@ -36,6 +36,7 @@ library:
     - Lexer
     - Evaluator
     - Ast
+    - HuskParser
 library:
   source-dirs: src
 

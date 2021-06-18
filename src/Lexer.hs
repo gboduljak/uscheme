@@ -23,6 +23,10 @@ import qualified Text.Parsec as P (string)
 import Text.ParserCombinators.Parsec (Parser)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
+
+ignore :: Parser a -> Parser ()
+ignore p =  do { p; return ()}
+
 spaces :: Parser ()
 spaces = skipMany space
 
@@ -101,17 +105,13 @@ boolean = true <|> false
 number :: Parser LispVal
 number =
   Number
-    <$> ( try (lexeme radix2)
-            <|> try (lexeme radix8)
-            <|> try (lexeme radix16)
-            <|> try (lexeme radix10)
-        )
+    <$> lexeme (try (radix2) <|> try (radix8) <|> try (radix16) <|> try (radix10)) 
   where
     radix2 :: Parser Integer
     radix2 = do
       Parsec.string "#b"
       xs <- many1 (oneOf "01")
-      notFollowedBy number
+      notFollowedBy shouldNotFollowNumber;
       return (asRadix2 xs)
       where
         asRadix2 :: [Char] -> Integer
@@ -120,7 +120,7 @@ number =
     radix8 = do
       Parsec.string "#o"
       xs <- many1 (oneOf "01234567")
-      notFollowedBy number
+      notFollowedBy shouldNotFollowNumber;
       return (asRadix8 xs)
       where
         asRadix8 :: [Char] -> Integer
@@ -130,8 +130,8 @@ number =
     radix16 = do
       Parsec.string "#h"
       xs <- many1 (oneOf "0123456789abcdef")
-      notFollowedBy number
-      fst . head . readHex <$> many1 (oneOf "0123456789abcdef")
+      notFollowedBy shouldNotFollowNumber;
+      return (asRadix16 xs)
       where
         asRadix16 :: [Char] -> Integer
         asRadix16 = fst . head . readHex
@@ -140,5 +140,8 @@ number =
     radix10 = do
       optional (Parsec.string "#d")
       xs <- many1 digit
-      notFollowedBy number
+      notFollowedBy shouldNotFollowNumber;
       return (read xs)
+
+shouldNotFollowNumber :: Parser ()
+shouldNotFollowNumber = ignore number <|> ignore atom <|> ignore boolean

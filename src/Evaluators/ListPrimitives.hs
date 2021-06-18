@@ -8,7 +8,13 @@ import Evaluators.ExpToolkit (applyUnaryOp)
 import LispError (LispError (Default, NumArgs, TypeMismatch))
 
 listPrimitives :: [(String, [LispVal] -> EvalMonad LispVal)]
-listPrimitives = [("list?", applyUnaryOp isList), ("car", car), ("cdr", cdr), ("cons", cons), ("reverse", Evaluators.ListPrimitives.reverse)]
+listPrimitives = [
+  ("list?", applyUnaryOp isList),
+  ("car", car), 
+  ("cdr", cdr), 
+  ("cons", cons), 
+  ("reverse", Evaluators.ListPrimitives.reverse)
+  ]
 
 isList :: LispVal -> LispVal
 isList (List _) = Bool True

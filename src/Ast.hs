@@ -11,6 +11,7 @@ data LispVal
   | Number Integer
   | String String
   | Bool Bool
+  | Dummy
   deriving (Show, Eq)
 
 -- instance Show LispVal where

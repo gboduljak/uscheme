@@ -3,8 +3,9 @@
 module Evaluator (performEvalEmpty, LispError (..)) where
 
 import Ast (LispVal (..))
+import Control.Monad
 import Control.Monad.Except (MonadError (throwError), runExceptT)
-import Control.Monad.Reader (runReader)
+import Control.Monad.Reader (MonadReader (ask, local), asks, runReader)
 import Data.Functor ((<&>))
 import qualified Data.List as List (reverse)
 import qualified Data.Map as Map (Map, empty, fromList, lookup, map)
@@ -21,6 +22,7 @@ import Evaluators.ListPrimitives (listPrimitives)
 import Evaluators.StringPrimitives (stringPrimitives)
 import LispError (LispError (..))
 import Text.Parsec
+import Utils.List (evens, odds)
 
 dummyVariablesEnv :: VariablesEnv
 dummyVariablesEnv = Map.empty
@@ -35,6 +37,11 @@ eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
+eval x@(Atom name) = do
+  result <- asks (Map.lookup name)
+  case result of
+    Just value -> return value
+    Nothing -> throwError (UnboundVar "attempted to retrieve unbound variable" name)
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
 eval (List [Atom "if", pred, conseq, alt]) = do
@@ -43,6 +50,22 @@ eval (List [Atom "if", pred, conseq, alt]) = do
     (Bool False) -> eval alt
     (Bool True) -> eval conseq
     _ -> throwError (TypeMismatch "bool" evaledPred)
+eval (List [Atom "let", List pairs, body]) = do
+  varNames <- mapM extractVarName pairs
+  varValues <- mapM evalVarBinding pairs
+  env <- ask
+  let expandedEnv = Map.fromList (zip varNames varValues) <> env
+   in local (const expandedEnv) (eval body)
+  where
+    evalVarBinding :: LispVal -> EvalMonad LispVal
+    evalVarBinding (List [varName, varBindExpr]) = eval varBindExpr
+    evalVarBinding expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+    extractVarName :: LispVal -> EvalMonad String
+    extractVarName expr@(List [varName, varBindExpr]) =
+      case varName of
+        (Atom name) -> return name
+        _ -> throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+    extractVarName expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
 eval expr@(List [Atom "if", pred, conseq]) = do
   evaledPred <- eval pred
   case evaledPred of
