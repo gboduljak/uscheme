@@ -28,8 +28,12 @@ library
       Ast
       EvalMonad
       Evaluator
+      Evaluators.Application
+      Evaluators.Atom
       Evaluators.ExpToolkit
+      Evaluators.FuncToolkit
       Evaluators.ListPrimitives
+      Evaluators.Primitives
       Evaluators.StringPrimitives
       Lexer
       Lib

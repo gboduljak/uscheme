@@ -4,4 +4,4 @@
 
 (define (factorial x) (if (= x 0) 1 (* x (factorial (- x 1)))))
 
-(define factorial (lambda (x) (if (= x 0) 1 (* x (factorial (- x 1))))))
+(define factorial2 (lambda (x) (if (= x 0) 1 (* x (factorial2 (- x 1))))))

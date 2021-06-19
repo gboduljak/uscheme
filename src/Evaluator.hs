@@ -13,6 +13,8 @@ import Data.Functor (($>), (<&>))
 import qualified Data.List as List (reverse)
 import qualified Data.Map as Map (Map, empty, fromList, insert, lookup, map)
 import EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..), unusedLambdaId)
+import Evaluators.Application (apply)
+import qualified Evaluators.Atom as Atom (resolve)
 import Evaluators.ExpToolkit
   ( applyNumericBinOp,
     applyPredicate,
@@ -21,8 +23,8 @@ import Evaluators.ExpToolkit
     unpackNum,
     unpackStr,
   )
-import Evaluators.ListPrimitives (listPrimitives)
-import Evaluators.StringPrimitives (stringPrimitives)
+import Evaluators.FuncToolkit (buildFunction, buildLambda)
+import Evaluators.Primitives (primitives)
 import LispError (LispError (..))
 import Text.Parsec
 import Utils.List (evens, odds)
@@ -49,11 +51,7 @@ eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
-eval (Atom name) = do
-  result <- asks (Map.lookup name . variables)
-  case result of
-    Just value -> return value
-    _ -> throwError (UnboundVar "attempted to retrieve unbound variable" name)
+eval (Atom name) = Atom.resolve name
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
 eval (List [Atom "if", pred, conseq, alt]) = do
@@ -116,75 +114,8 @@ eval expr@(List (Atom "case" : key : clauses)) = do
       _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
 eval (List [Atom "lambda", List lambdaArgs, lambdaBody]) = buildLambda lambdaArgs lambdaBody
 eval expr@(List (Atom "lambda" : _)) = throwError $ BadSpecialForm "ill-formed lambda expression: " expr
-eval expr@(List (head : args)) = do
-  vars <- asks variables
-  case head of
-    (Atom name) -> case Map.lookup name vars of
-      (Just lambda) -> applyLambda lambda args
-      Nothing -> applyPrimitive name args
-    _ ->
-      eval head
-        >>= ( \case
-                lambda@Lambda {} -> applyLambda lambda args
-                _ -> throwError (BadSpecialForm "Unrecognized special form: " expr)
-            )
-  where
-    applyPrimitive func args = do
-      case Map.lookup func primitives of
-        (Just funcImpl) -> do
-          evaledArgs <- mapM eval args
-          apply funcImpl evaledArgs
-        Nothing -> throwError (NotFunction "Unrecognised primitive function " func)
-    applyLambda lambda@(Lambda id args body) argsToBind = do
-      env <- ask
-      lambdaCtxts <- gets lambdaContexts
-      evaledArgs <- mapM eval argsToBind
-      case Map.lookup id lambdaCtxts of
-        (Just lambdaEnv) -> do
-          let lambdaEvalEnv = Env {variables = Map.fromList (zip args evaledArgs) <> variables lambdaEnv, isGlobal = False}
-           in local (const lambdaEvalEnv) (eval body)
-        _ -> throwError (BadSpecialForm "Tried to evaluate unrecognised lambda: " lambda)
-    applyLambda xs _ = throwError (BadSpecialForm "Unrecognized special form " xs)
-eval badForm = throwError (BadSpecialForm "Unrecognized special form " badForm)
-
-buildFunction :: String -> [LispVal] -> LispVal -> EvalMonad LispVal
-buildFunction name lambdaArgs lambdaBody = do
-  env <- ask
-  state <- get
-  args <- mapM unpackAtomId lambdaArgs
-  let lambdaId = unusedLambdaId state
-   in let lambda = Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
-       in put
-            St
-              { globalEnv = globalEnv state,
-                lambdaContexts =
-                  Map.insert
-                    lambdaId
-                    ( Env
-                        { variables = Map.insert name lambda (variables env),
-                          isGlobal = isGlobal env
-                        }
-                    )
-                    (lambdaContexts state)
-              }
-            $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
-
-buildLambda :: [LispVal] -> LispVal -> EvalMonad LispVal
-buildLambda lambdaArgs lambdaBody = do
-  env <- ask
-  state <- get
-  args <- mapM unpackAtomId lambdaArgs
-  let lambdaId = unusedLambdaId state
-   in put
-        St
-          { globalEnv = globalEnv state,
-            lambdaContexts = Map.insert lambdaId env (lambdaContexts state)
-          }
-        $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
-  where
-    unpackAtomId :: LispVal -> EvalMonad String
-    unpackAtomId (Atom x) = return x
-    unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
+eval expr@(List (head : args)) = apply expr eval
+eval expr = throwError (BadSpecialForm "Unrecognized special form" expr)
 
 defineAndRunScoped :: LispVal -> LispVal -> EvalMonad LispVal -> EvalMonad LispVal
 defineAndRunScoped defineExpr definitionExpr scopedExpr = case defineExpr of
@@ -216,38 +147,6 @@ defineAndRunScoped defineExpr definitionExpr scopedExpr = case defineExpr of
               else local (const boundEnv) scopedExpr
   _ -> throwError $ BadSpecialForm "ill-formed define expression: " defineExpr
 
-apply :: ([LispVal] -> EvalMonad LispVal) -> [LispVal] -> EvalMonad LispVal
-apply func = func
-
-primitives :: Map.Map String ([LispVal] -> EvalMonad LispVal)
-primitives =
-  Map.fromList
-    ( [ ("+", applyNumericBinOp (+)),
-        ("-", applyNumericBinOp (-)),
-        ("*", applyNumericBinOp (*)),
-        ("/", applyNumericBinOp div),
-        ("mod", applyNumericBinOp mod),
-        ("quotient", applyNumericBinOp quot),
-        ("remainder", applyNumericBinOp rem),
-        ("symbol?", applyUnaryOp isSymbol),
-        ("number?", applyUnaryOp isNumber),
-        ("bool?", applyUnaryOp isBool),
-        ("=", applyPredicate unpackNum (==)),
-        ("<", applyPredicate unpackNum (<)),
-        (">", applyPredicate unpackNum (>)),
-        ("<=", applyPredicate unpackNum (<=)),
-        (">=", applyPredicate unpackNum (>=)),
-        ("/=", applyPredicate unpackNum (/=)),
-        ("&&", applyPredicate unpackBool (&&)),
-        ("||", applyPredicate unpackBool (||)),
-        ("eqv?", eqv),
-        ("eq?", eqv),
-        ("equal?", eqv)
-      ]
-        ++ listPrimitives
-        ++ stringPrimitives
-    )
-
 evalBody :: LispVal -> EvalMonad LispVal
 evalBody (List [List ((Atom "define") : [Atom var, defExpr]), rest]) = defineAndRunScoped (Atom var) defExpr (eval rest)
 evalBody (List ((List ((Atom "define") : [Atom var, defExpr])) : rest)) = defineAndRunScoped (Atom var) defExpr (evalBody (List rest))
@@ -271,36 +170,11 @@ evalBody (List ((List [Atom "define", DottedList params param, body]) : rest)) =
         funcName <- unpackAtomId name
         builtFunc <- buildFunction funcName (tail params ++ [param]) body
         defineAndRunScoped (head params) (List [Atom "quote", builtFunc]) (evalBody (List rest))
-
-isSymbol :: LispVal -> LispVal
-isSymbol (Atom _) = Bool True
-isSymbol _ = Bool False
-
-isNumber :: LispVal -> LispVal
-isNumber (Number _) = Bool True
-isNumber _ = Bool False
-
-isBool :: LispVal -> LispVal
-isBool (Bool _) = Bool True
-isBool _ = Bool False
+evalBody expr = eval expr
 
 unpackAtomId :: LispVal -> EvalMonad String
 unpackAtomId (Atom x) = return x
 unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
-
-eqv :: [LispVal] -> EvalMonad LispVal
-eqv [(Bool arg1), (Bool arg2)] = return (Bool (arg1 == arg2))
-eqv [(Number arg1), (Number arg2)] = return (Bool (arg1 == arg2))
-eqv [(String arg1), (String arg2)] = return (Bool (arg1 == arg2))
-eqv [(Atom arg1), (Atom arg2)] = return (Bool (arg1 == arg2))
-eqv [(DottedList xs x), (DottedList ys y)] = eqv [List (xs ++ [x]), List (ys ++ [y])]
-eqv [(List xs), (List ys)] =
-  if length xs /= length ys
-    then return (Bool False)
-    else do
-      pairsEq <- mapM eqv [[x, y] | (x, y) <- zip xs ys]
-      allPairsEq <- mapM unpackBool pairsEq
-      return (Bool (and allPairsEq))
 
 cond :: [LispVal] -> EvalMonad LispVal
 cond [List [Atom "else", value]] = eval value
