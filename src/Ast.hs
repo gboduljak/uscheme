@@ -11,7 +11,12 @@ data LispVal
   | Number Integer
   | String String
   | Bool Bool
-  | Dummy
+  | PrimitiveFunction String
+  | Lambda
+      { lambdaId :: Integer,
+        args :: [String],
+        body :: LispVal
+      }
   deriving (Show, Eq)
 
 -- instance Show LispVal where

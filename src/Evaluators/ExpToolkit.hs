@@ -12,9 +12,10 @@ module Evaluators.ExpToolkit
 where
 
 import Ast (LispVal (Bool, Number, String))
-import Control.Monad.Except (MonadError (throwError))
+import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
+import Control.Monad.Reader (Reader)
 import Data.Functor ((<&>))
-import EvalMonad (EvalMonad)
+import EvalMonad (EvalMonad, EvaluationEnv)
 import LispError (LispError (NumArgs, TypeMismatch))
 
 type NumericBinOp = (Integer -> Integer -> Integer)

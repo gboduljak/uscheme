@@ -1,13 +1,30 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module EvalMonad (EvalMonad (..), VariablesEnv (..)) where
+module EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..), unusedLambdaId) where
 
 import Ast (LispVal (..))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (Reader)
-import qualified Data.Map as Map (Map, empty, fromList, lookup, map)
+import Control.Monad.State
+import qualified Data.Map as Map (Map, empty, fromList, lookup, map, size)
 import LispError (LispError (..))
 
-type VariablesEnv = Map.Map String LispVal
+type LambdaId = Integer
 
-type EvalMonad a = ExceptT LispError (Reader VariablesEnv) a
+data EvaluationEnv = Env
+  { variables :: Map.Map String LispVal,
+    isGlobal :: Bool
+  }
+  deriving (Show)
+
+data EvaluationState = St
+  { globalEnv :: EvaluationEnv,
+    lambdaContexts :: Map.Map LambdaId EvaluationEnv
+  }
+  deriving (Show)
+
+unusedLambdaId :: EvaluationState -> Integer
+unusedLambdaId = fromIntegral . Map.size . lambdaContexts
+
+type EvalMonad a = StateT EvaluationState (ExceptT LispError (Reader EvaluationEnv)) a

@@ -1,15 +1,18 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluator (performEvalEmpty, LispError (..)) where
+module Evaluator (performEvalEmpty, performEval, LispError (..)) where
 
 import Ast (LispVal (..))
 import Control.Monad
-import Control.Monad.Except (MonadError (throwError), runExceptT)
-import Control.Monad.Reader (MonadReader (ask, local), asks, runReader)
-import Data.Functor ((<&>))
+import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), runExceptT)
+import Control.Monad.Reader (MonadReader (ask, local), Reader, asks, runReader)
+import Control.Monad.State (MonadState (get, put), StateT (runStateT), gets)
+import Data.Functor (($>), (<&>))
 import qualified Data.List as List (reverse)
-import qualified Data.Map as Map (Map, empty, fromList, lookup, map)
-import EvalMonad (EvalMonad (..), VariablesEnv (..))
+import qualified Data.Map as Map (Map, empty, fromList, insert, lookup, map)
+import EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..), unusedLambdaId)
 import Evaluators.ExpToolkit
   ( applyNumericBinOp,
     applyPredicate,
@@ -24,24 +27,33 @@ import LispError (LispError (..))
 import Text.Parsec
 import Utils.List (evens, odds)
 
-dummyVariablesEnv :: VariablesEnv
-dummyVariablesEnv = Map.empty
+dummyEvaluationEnv :: EvaluationEnv
+dummyEvaluationEnv = Env {variables = Map.empty, isGlobal = True}
+
+dummyState :: EvaluationState
+dummyState =
+  St
+    { globalEnv = dummyEvaluationEnv,
+      lambdaContexts = Map.empty
+    }
 
 performEvalEmpty :: LispVal -> Either LispError LispVal
-performEvalEmpty expr = performEval expr dummyVariablesEnv
+performEvalEmpty expr = case performEval expr dummyEvaluationEnv dummyState of
+  Left e -> Left e
+  Right (val, st) -> Right val
 
-performEval :: LispVal -> VariablesEnv -> Either LispError LispVal
-performEval expr = runReader $ runExceptT (eval expr)
+performEval :: LispVal -> EvaluationEnv -> EvaluationState -> Either LispError (LispVal, EvaluationState)
+performEval expr env state = runReader (runExceptT (runStateT (eval expr) state)) env
 
 eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
-eval x@(Atom name) = do
-  result <- asks (Map.lookup name)
+eval (Atom name) = do
+  result <- asks (Map.lookup name . variables)
   case result of
     Just value -> return value
-    Nothing -> throwError (UnboundVar "attempted to retrieve unbound variable" name)
+    _ -> throwError (UnboundVar "attempted to retrieve unbound variable" name)
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
 eval (List [Atom "if", pred, conseq, alt]) = do
@@ -51,21 +63,28 @@ eval (List [Atom "if", pred, conseq, alt]) = do
     (Bool True) -> eval conseq
     _ -> throwError (TypeMismatch "bool" evaledPred)
 eval (List [Atom "let", List pairs, body]) = do
-  varNames <- mapM extractVarName pairs
-  varValues <- mapM evalVarBinding pairs
+  varNames <- mapM extractPairVarName pairs
+  varValues <- mapM evalPairVarBinding pairs
   env <- ask
-  let expandedEnv = Map.fromList (zip varNames varValues) <> env
+  let expandedEnv =
+        Env
+          { variables = Map.fromList (zip varNames varValues) <> variables env,
+            isGlobal = False
+          }
    in local (const expandedEnv) (eval body)
   where
-    evalVarBinding :: LispVal -> EvalMonad LispVal
-    evalVarBinding (List [varName, varBindExpr]) = eval varBindExpr
-    evalVarBinding expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
-    extractVarName :: LispVal -> EvalMonad String
-    extractVarName expr@(List [varName, varBindExpr]) =
+    evalPairVarBinding :: LispVal -> EvalMonad LispVal
+    evalPairVarBinding (List [varName, varBindExpr]) = eval varBindExpr
+    evalPairVarBinding expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+    extractPairVarName :: LispVal -> EvalMonad String
+    extractPairVarName expr@(List [varName, varBindExpr]) =
       case varName of
         (Atom name) -> return name
         _ -> throwError $ BadSpecialForm "ill-formed let pair expression: " expr
-    extractVarName expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+    extractPairVarName expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+eval expr@(List [Atom "define", name, bodyExpr]) = defineAndRunScoped name bodyExpr (return name)
+eval (List [Atom "begin", rest]) = evalBody rest
+eval (List ((:) (Atom "begin") rest)) = evalBody $ List rest
 eval expr@(List [Atom "if", pred, conseq]) = do
   evaledPred <- eval pred
   case evaledPred of
@@ -85,14 +104,83 @@ eval expr@(List (Atom "case" : key : clauses)) = do
           then mapM eval exprs <&> last
           else return eval expr (List (Atom "case" : key : tail clauses))
       _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
-eval (List (Atom "begin" : exprs)) = mapM eval exprs <&> last
-eval (List (Atom func : args)) = do
-  case Map.lookup func primitives of
-    (Just funcImpl) -> do
-      evaledArgs <- mapM eval args
-      apply funcImpl evaledArgs
-    Nothing -> throwError (NotFunction "Unrecognised primitive function " func)
+eval (List [Atom "lambda", List lambdaArgs, lambdaBody]) =
+  do
+    env <- ask
+    state <- get
+    args <- mapM unpackAtomId lambdaArgs
+    let lambdaId = unusedLambdaId state
+     in put
+          St
+            { globalEnv = globalEnv state,
+              lambdaContexts = Map.insert lambdaId env (lambdaContexts state)
+            }
+          $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
+  where
+    unpackAtomId :: LispVal -> EvalMonad String
+    unpackAtomId (Atom x) = return x
+    unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
+eval expr@(List (Atom "lambda" : _)) = throwError $ BadSpecialForm "ill-formed lambda expression: " expr
+eval expr@(List (head : args)) = do
+  vars <- asks variables
+  case head of
+    (Atom name) -> case Map.lookup name vars of
+      (Just lambda) -> applyLambda lambda args
+      Nothing -> applyPrimitive name args
+    _ ->
+      eval head
+        >>= ( \case
+                lambda@Lambda {} -> applyLambda lambda args
+                _ -> throwError (BadSpecialForm "Unrecognized special form: " expr)
+            )
+  where
+    applyPrimitive func args = do
+      case Map.lookup func primitives of
+        (Just funcImpl) -> do
+          evaledArgs <- mapM eval args
+          apply funcImpl evaledArgs
+        Nothing -> throwError (NotFunction "Unrecognised primitive function " func)
+    applyLambda lambda@(Lambda id args body) argsToBind = do
+      env <- ask
+      lambdaCtxts <- gets lambdaContexts
+      evaledArgs <- mapM eval argsToBind
+      case Map.lookup id lambdaCtxts of
+        (Just lambdaEnv) -> do
+          let lambdaEvalEnv = Env {variables = Map.fromList (zip args evaledArgs) <> variables lambdaEnv, isGlobal = False}
+           in local (const lambdaEvalEnv) (eval body)
+        _ -> throwError (BadSpecialForm "Tried to evaluate unrecognised lambda: " lambda)
+    applyLambda xs _ = throwError (BadSpecialForm "Unrecognized special form " xs)
 eval badForm = throwError (BadSpecialForm "Unrecognized special form " badForm)
+
+defineAndRunScoped :: LispVal -> LispVal -> EvalMonad LispVal -> EvalMonad LispVal
+defineAndRunScoped defineExpr definitionExpr scopedExpr = case defineExpr of
+  (Atom name) -> do
+    do
+      evaledExpr <- eval definitionExpr
+      env <- ask
+      let boundEnv =
+            Env
+              { variables = Map.insert name evaledExpr (variables env),
+                isGlobal = isGlobal env
+              }
+       in do
+            if isGlobal env
+              then do
+                globalVars <- gets (variables . globalEnv)
+                globalLambdaCtx <- gets lambdaContexts
+                put
+                  ( St
+                      { globalEnv =
+                          Env
+                            { variables = Map.insert name evaledExpr globalVars,
+                              isGlobal = True
+                            },
+                        lambdaContexts = globalLambdaCtx
+                      }
+                  )
+                local (const boundEnv) scopedExpr
+              else local (const boundEnv) scopedExpr
+  _ -> throwError $ BadSpecialForm "ill-formed define expression: " defineExpr
 
 apply :: ([LispVal] -> EvalMonad LispVal) -> [LispVal] -> EvalMonad LispVal
 apply func = func
@@ -125,6 +213,11 @@ primitives =
         ++ listPrimitives
         ++ stringPrimitives
     )
+
+evalBody :: LispVal -> EvalMonad LispVal
+evalBody (List [List ((Atom "define") : [Atom var, defExpr]), rest]) = defineAndRunScoped (Atom var) defExpr (eval rest)
+evalBody (List ((List ((Atom "define") : [Atom var, defExpr])) : rest)) = defineAndRunScoped (Atom var) defExpr (evalBody (List rest))
+evalBody x = eval x
 
 isSymbol :: LispVal -> LispVal
 isSymbol (Atom _) = Bool True

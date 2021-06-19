@@ -3,11 +3,12 @@
 module Evaluators.StringPrimitives (stringPrimitives) where
 
 import Ast (LispVal (Atom, Bool))
-import Control.Monad.Except (MonadError (throwError))
+import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
+import Control.Monad.Reader
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import EvalMonad (EvalMonad)
+import EvalMonad (EvalMonad, EvaluationEnv)
 import Evaluators.ExpToolkit (applyPredicate, applyUnaryOp, unpackStr)
 import LispError (LispError (Default, NumArgs, TypeMismatch))
 

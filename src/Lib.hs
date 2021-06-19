@@ -6,7 +6,9 @@ where
 
 import Ast
 import Data.Char
-import Evaluator (performEvalEmpty)
+import EvalMonad (EvaluationState (globalEnv))
+import Evaluator (LispError (ParserError), performEval, performEvalEmpty)
+import LispError (LispError)
 import Parser (expr)
 import qualified Text.Parsec as Parsec (parse)
 import Text.Parsec.Token
