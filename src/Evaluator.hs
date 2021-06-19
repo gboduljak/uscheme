@@ -82,6 +82,14 @@ eval (List [Atom "let", List pairs, body]) = do
         (Atom name) -> return name
         _ -> throwError $ BadSpecialForm "ill-formed let pair expression: " expr
     extractPairVarName expr = throwError $ BadSpecialForm "ill-formed let pair expression: " expr
+eval (List [Atom "define", List (name : params), body]) = do
+  builtLambda <- buildLambda params body
+  defineAndRunScoped name (List [Atom "quote", builtLambda]) (return name)
+eval (List [Atom "define", DottedList params param, body]) = do
+  let name = head params
+   in do
+        builtLambda <- buildLambda (tail params ++ [param]) body
+        defineAndRunScoped (head params) (List [Atom "quote", builtLambda]) (return name)
 eval expr@(List [Atom "define", name, bodyExpr]) = defineAndRunScoped name bodyExpr (return name)
 eval (List [Atom "begin", rest]) = evalBody rest
 eval (List ((:) (Atom "begin") rest)) = evalBody $ List rest
@@ -104,22 +112,7 @@ eval expr@(List (Atom "case" : key : clauses)) = do
           then mapM eval exprs <&> last
           else return eval expr (List (Atom "case" : key : tail clauses))
       _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
-eval (List [Atom "lambda", List lambdaArgs, lambdaBody]) =
-  do
-    env <- ask
-    state <- get
-    args <- mapM unpackAtomId lambdaArgs
-    let lambdaId = unusedLambdaId state
-     in put
-          St
-            { globalEnv = globalEnv state,
-              lambdaContexts = Map.insert lambdaId env (lambdaContexts state)
-            }
-          $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
-  where
-    unpackAtomId :: LispVal -> EvalMonad String
-    unpackAtomId (Atom x) = return x
-    unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
+eval (List [Atom "lambda", List lambdaArgs, lambdaBody]) = buildLambda lambdaArgs lambdaBody
 eval expr@(List (Atom "lambda" : _)) = throwError $ BadSpecialForm "ill-formed lambda expression: " expr
 eval expr@(List (head : args)) = do
   vars <- asks variables
@@ -151,6 +144,23 @@ eval expr@(List (head : args)) = do
         _ -> throwError (BadSpecialForm "Tried to evaluate unrecognised lambda: " lambda)
     applyLambda xs _ = throwError (BadSpecialForm "Unrecognized special form " xs)
 eval badForm = throwError (BadSpecialForm "Unrecognized special form " badForm)
+
+buildLambda :: [LispVal] -> LispVal -> EvalMonad LispVal
+buildLambda lambdaArgs lambdaBody = do
+  env <- ask
+  state <- get
+  args <- mapM unpackAtomId lambdaArgs
+  let lambdaId = unusedLambdaId state
+   in put
+        St
+          { globalEnv = globalEnv state,
+            lambdaContexts = Map.insert lambdaId env (lambdaContexts state)
+          }
+        $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
+  where
+    unpackAtomId :: LispVal -> EvalMonad String
+    unpackAtomId (Atom x) = return x
+    unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
 
 defineAndRunScoped :: LispVal -> LispVal -> EvalMonad LispVal -> EvalMonad LispVal
 defineAndRunScoped defineExpr definitionExpr scopedExpr = case defineExpr of
@@ -217,7 +227,22 @@ primitives =
 evalBody :: LispVal -> EvalMonad LispVal
 evalBody (List [List ((Atom "define") : [Atom var, defExpr]), rest]) = defineAndRunScoped (Atom var) defExpr (eval rest)
 evalBody (List ((List ((Atom "define") : [Atom var, defExpr])) : rest)) = defineAndRunScoped (Atom var) defExpr (evalBody (List rest))
-evalBody x = eval x
+evalBody (List [List [Atom "define", List (name : params), body], rest]) = do
+  builtLambda <- buildLambda params body
+  defineAndRunScoped name (List [Atom "quote", builtLambda]) (eval rest)
+evalBody (List [List [Atom "define", DottedList params param, body], rest]) = do
+  let name = head params
+   in do
+        builtLambda <- buildLambda (tail params ++ [param]) body
+        defineAndRunScoped (head params) (List [Atom "quote", builtLambda]) (eval rest)
+evalBody (List ((List [Atom "define", List (name : params), body]) : rest)) = do
+  builtLambda <- buildLambda params body
+  defineAndRunScoped name (List [Atom "quote", builtLambda]) (evalBody (List rest))
+evalBody (List ((List [Atom "define", DottedList params param, body]) : rest)) = do
+  let name = head params
+   in do
+        builtLambda <- buildLambda (tail params ++ [param]) body
+        defineAndRunScoped (head params) (List [Atom "quote", builtLambda]) (evalBody (List rest))
 
 isSymbol :: LispVal -> LispVal
 isSymbol (Atom _) = Bool True
