@@ -15,6 +15,7 @@ import qualified Data.Map as Map (Map, empty, fromList, insert, lookup, map)
 import EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..), unusedLambdaId)
 import Evaluators.Application (apply)
 import qualified Evaluators.Atom as Atom (resolve)
+import Evaluators.EquivalencePrimitives (eqv)
 import Evaluators.ExpToolkit
   ( applyNumericBinOp,
     applyPredicate,

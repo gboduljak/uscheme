@@ -30,6 +30,8 @@ library
       Evaluator
       Evaluators.Application
       Evaluators.Atom
+      Evaluators.Define
+      Evaluators.EquivalencePrimitives
       Evaluators.ExpToolkit
       Evaluators.FuncToolkit
       Evaluators.ListPrimitives
@@ -39,6 +41,8 @@ library
       Lib
       LispError
       Parser
+      Scoping.Resolver
+      Scoping.Scope
       Utils.List
   other-modules:
       Paths_uscheme
@@ -78,6 +82,7 @@ test-suite uscheme-test
   other-modules:
       Book
       Helpers
+      ScopingSpec
       Toys
       Paths_uscheme
   hs-source-dirs:

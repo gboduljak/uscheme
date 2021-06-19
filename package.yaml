@@ -37,6 +37,9 @@ library:
     - Evaluator
     - Ast
     - HuskParser
+    - Scoping
+    - Resolver
+    - Scope
 library:
   source-dirs: src
 

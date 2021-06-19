@@ -33,7 +33,7 @@ evalAndPrint expr = do
 
 repl :: StateT EvaluationState IO ()
 repl = do
-  x <- liftIO $ readPrompt "uscheme >>>"
+  x <- liftIO $ readPrompt "uscheme >>> "
   if x == "(quit)"
     then return ()
     else do
