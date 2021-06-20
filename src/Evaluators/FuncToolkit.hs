@@ -1,56 +1,34 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluators.FuncToolkit (buildFunction, buildLambda) where
+module Evaluators.FuncToolkit where
 
-import Ast (LispVal (Atom, Lambda, args, body, lambdaId))
+import Ast (LispVal (..))
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (get, gets, put)
 import Data.Functor (($>))
 import qualified Data.Map as Map
-import EvalMonad (EvalMonad, EvaluationEnv (Env, isGlobal, variables), EvaluationState (..), unusedLambdaId)
+import EvalMonad (EvalMonad, currentScope, enterScope, exitScope, extendScope)
 import LispError (LispError (BadSpecialForm, Default))
+import Scoping.Scope (Scope (id))
+import Prelude hiding (id)
 
--- function is implemented as a named lambda, in the spirit of Scheme define
 buildFunction :: String -> [LispVal] -> LispVal -> EvalMonad LispVal
-buildFunction name args body = do
-  env <- ask
-  globalEnv <- gets globalEnv
-  lambdaCtxes <- gets lambdaContexts
-  builtLambda <- buildLambda args body
-  case builtLambda of
-    lambda@Lambda {} ->
-      put
-        St
-          { globalEnv = globalEnv,
-            lambdaContexts =
-              Map.insert
-                (lambdaId lambda)
-                ( Env
-                    { variables = Map.insert name lambda (variables env),
-                      isGlobal = isGlobal env
-                    }
-                )
-                lambdaCtxes
-          }
-        $> lambda
+buildFunction funcName = buildLambda
 
 buildLambda :: [LispVal] -> LispVal -> EvalMonad LispVal
 buildLambda lambdaArgs lambdaBody = do
-  env <- ask
-  globalEnv <- gets globalEnv
-  lambdaCtxes <- gets lambdaContexts
-  state <- get
-  args <- mapM unpackAtomId lambdaArgs
-  let lambdaId = unusedLambdaId state
-   in put
-        St
-          { globalEnv = globalEnv,
-            lambdaContexts = Map.insert lambdaId env (lambdaContexts state)
+  lambdaArgNames <- mapM getAtomValue lambdaArgs
+  lambdaScopeId <- currentScope
+  let lambda =
+        Lambda
+          { args = lambdaArgNames,
+            body = lambdaBody,
+            targetScopeId = id lambdaScopeId
           }
-        $> Lambda {lambdaId = lambdaId, args = args, body = lambdaBody}
+  return lambda
 
-unpackAtomId :: LispVal -> EvalMonad String
-unpackAtomId (Atom x) = return x
-unpackAtomId val = throwError (BadSpecialForm "tried to define lambda with arg: " val)
+getAtomValue :: LispVal -> EvalMonad String
+getAtomValue (Atom x) = return x
+getAtomValue val = throwError (BadSpecialForm "tried to define lambda with arg: " val)

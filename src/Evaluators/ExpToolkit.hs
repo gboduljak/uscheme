@@ -2,9 +2,9 @@ module Evaluators.ExpToolkit
   ( NumericBinOp (..),
     UnaryOp (..),
     PredicateBinOp (..),
-    applyUnaryOp,
-    applyNumericBinOp,
-    applyPredicate,
+    liftUnaryOp,
+    liftNumericBinOp,
+    liftLogicalBinOp,
     unpackNum,
     unpackStr,
     unpackBool,
@@ -15,7 +15,7 @@ import Ast (LispVal (Bool, Number, String))
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
 import Control.Monad.Reader (Reader)
 import Data.Functor ((<&>))
-import EvalMonad (EvalMonad, EvaluationEnv)
+import EvalMonad (EvalMonad)
 import LispError (LispError (NumArgs, TypeMismatch))
 
 type NumericBinOp = (Integer -> Integer -> Integer)
@@ -24,16 +24,16 @@ type UnaryOp = (LispVal -> LispVal)
 
 type PredicateBinOp a = (a -> a -> Bool)
 
-applyNumericBinOp :: NumericBinOp -> [LispVal] -> EvalMonad LispVal
-applyNumericBinOp op args = mapM unpackNum args <&> Number . foldl1 op
+liftNumericBinOp :: NumericBinOp -> [LispVal] -> EvalMonad LispVal
+liftNumericBinOp op args = mapM unpackNum args <&> Number . foldl1 op
 
-applyUnaryOp :: UnaryOp -> [LispVal] -> EvalMonad LispVal
-applyUnaryOp op args = case args of
+liftUnaryOp :: UnaryOp -> [LispVal] -> EvalMonad LispVal
+liftUnaryOp op args = case args of
   [arg] -> return (op arg)
-  _ -> throwError (NumArgs 2 args)
+  _ -> throwError (NumArgs 1 args)
 
-applyPredicate :: (LispVal -> EvalMonad a) -> PredicateBinOp a -> [LispVal] -> EvalMonad LispVal
-applyPredicate unpack op args
+liftLogicalBinOp :: (LispVal -> EvalMonad a) -> PredicateBinOp a -> [LispVal] -> EvalMonad LispVal
+liftLogicalBinOp unpack op args
   | length args /= 2 = throwError (NumArgs 2 args)
   | otherwise = do
     left <- unpack $ head args

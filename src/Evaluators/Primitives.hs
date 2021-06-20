@@ -1,40 +1,42 @@
-module Evaluators.Primitives (primitives) where
+module Evaluators.Primitives (primitives, Evaluators.Primitives.lookup, PrimitiveCallable) where
 
-import Ast (LispVal (Atom, Bool, DottedList, List, Number, String))
+import Ast (LispVal (Atom, Bool, DottedList, List, Number, String), PrimitiveFunctionKind (Binary, Unary))
 import qualified Data.Map as Map
 import EvalMonad
 import Evaluators.EquivalencePrimitives (eqv)
 import Evaluators.ExpToolkit
-  ( applyNumericBinOp,
-    applyPredicate,
-    applyUnaryOp,
+  ( liftLogicalBinOp,
+    liftNumericBinOp,
+    liftUnaryOp,
     unpackBool,
     unpackNum,
   )
 import Evaluators.ListPrimitives (listPrimitives)
 import Evaluators.StringPrimitives (stringPrimitives)
 
-primitives :: Map.Map String ([LispVal] -> EvalMonad LispVal)
+type PrimitiveCallable = [LispVal] -> EvalMonad LispVal
+
+primitives :: Map.Map String PrimitiveCallable
 primitives =
   Map.fromList
-    ( [ ("+", applyNumericBinOp (+)),
-        ("-", applyNumericBinOp (-)),
-        ("*", applyNumericBinOp (*)),
-        ("/", applyNumericBinOp div),
-        ("mod", applyNumericBinOp mod),
-        ("quotient", applyNumericBinOp quot),
-        ("remainder", applyNumericBinOp rem),
-        ("symbol?", applyUnaryOp isSymbol),
-        ("number?", applyUnaryOp isNumber),
-        ("bool?", applyUnaryOp isBool),
-        ("=", applyPredicate unpackNum (==)),
-        ("<", applyPredicate unpackNum (<)),
-        (">", applyPredicate unpackNum (>)),
-        ("<=", applyPredicate unpackNum (<=)),
-        (">=", applyPredicate unpackNum (>=)),
-        ("/=", applyPredicate unpackNum (/=)),
-        ("&&", applyPredicate unpackBool (&&)),
-        ("||", applyPredicate unpackBool (||)),
+    ( [ ("+", liftNumericBinOp (+)),
+        ("-", liftNumericBinOp (-)),
+        ("*", liftNumericBinOp (*)),
+        ("/", liftNumericBinOp div),
+        ("mod", liftNumericBinOp mod),
+        ("quotient", liftNumericBinOp quot),
+        ("remainder", liftNumericBinOp rem),
+        ("symbol?", liftUnaryOp isSymbol),
+        ("number?", liftUnaryOp isNumber),
+        ("bool?", liftUnaryOp isBool),
+        ("=", liftLogicalBinOp unpackNum (==)),
+        ("<", liftLogicalBinOp unpackNum (<)),
+        (">", liftLogicalBinOp unpackNum (>)),
+        ("<=", liftLogicalBinOp unpackNum (<=)),
+        (">=", liftLogicalBinOp unpackNum (>=)),
+        ("/=", liftLogicalBinOp unpackNum (/=)),
+        ("&&", liftLogicalBinOp unpackBool (&&)),
+        ("||", liftLogicalBinOp unpackBool (||)),
         ("eqv?", eqv),
         ("eq?", eqv),
         ("equal?", eqv)
@@ -42,6 +44,9 @@ primitives =
         ++ listPrimitives
         ++ stringPrimitives
     )
+
+lookup :: String -> Maybe PrimitiveCallable
+lookup name = Map.lookup name primitives
 
 isSymbol :: LispVal -> LispVal
 isSymbol (Atom _) = Bool True

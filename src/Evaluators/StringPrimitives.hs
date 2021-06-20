@@ -8,18 +8,18 @@ import Control.Monad.Reader
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import EvalMonad (EvalMonad, EvaluationEnv)
-import Evaluators.ExpToolkit (applyPredicate, applyUnaryOp, unpackStr)
+import EvalMonad (EvalMonad)
+import Evaluators.ExpToolkit (liftLogicalBinOp, liftUnaryOp, unpackStr)
 import LispError (LispError (Default, NumArgs, TypeMismatch))
 
 stringPrimitives :: [(String, [LispVal] -> EvalMonad LispVal)]
 stringPrimitives =
-  [ ("string=?", applyPredicate unpackStr (==)),
-    ("string<?", applyPredicate unpackStr (<)),
-    ("string>?", applyPredicate unpackStr (>)),
-    ("string<=?", applyPredicate unpackStr (<=)),
-    ("string>=?", applyPredicate unpackStr (>=)),
-    ("string?", applyUnaryOp isString)
+  [ ("string=?", liftLogicalBinOp unpackStr (==)),
+    ("string<?", liftLogicalBinOp unpackStr (<)),
+    ("string>?", liftLogicalBinOp unpackStr (>)),
+    ("string<=?", liftLogicalBinOp unpackStr (<=)),
+    ("string>=?", liftLogicalBinOp unpackStr (>=)),
+    ("string?", liftUnaryOp isString)
   ]
 
 isString :: LispVal -> LispVal

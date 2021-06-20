@@ -1,30 +1,60 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..), unusedLambdaId) where
+module EvalMonad
+  ( EvalMonad (..),
+    EvalMonad.lookup,
+    EvalMonad.extendScope,
+    EvalMonad.enterScope,
+    EvalMonad.deleteScope,
+    EvalMonad.exitScope,
+    EvalMonad.switchToScope,
+    EvalMonad.currentScope,
+  )
+where
 
 import Ast (LispVal (..))
-import Control.Monad.Except (ExceptT)
+import Control.Monad.Except (ExceptT, MonadError)
+import Control.Monad.Identity
 import Control.Monad.Reader (Reader)
 import Control.Monad.State
-import qualified Data.Map as Map (Map, empty, fromList, lookup, map, size)
+import Data.Map hiding (lookup)
 import LispError (LispError (..))
+import Scoping.Scope
+import Scoping.ScopeResolver
+import qualified Scoping.ScopeResolver as ScopeResolver
+  ( ScopeContext (ScopeContext),
+    ScopeResolver,
+    current,
+    deleteScope,
+    enter,
+    exit,
+    extend,
+    lookup,
+    switchToScope,
+  )
+import Prelude hiding (lookup)
 
-type LambdaId = Integer
+type EvalMonad a = ExceptT LispError (State ScopeContext) a
 
-data EvaluationEnv = Env
-  { variables :: Map.Map String LispVal,
-    isGlobal :: Bool
-  }
-  deriving (Show)
+lookup :: String -> EvalMonad (Maybe LispVal)
+lookup = lift . ScopeResolver.lookup
 
-data EvaluationState = St
-  { globalEnv :: EvaluationEnv,
-    lambdaContexts :: Map.Map LambdaId EvaluationEnv
-  }
-  deriving (Show)
+extendScope :: Binding -> EvalMonad Scope
+extendScope = lift . ScopeResolver.extend
 
-unusedLambdaId :: EvaluationState -> Integer
-unusedLambdaId = fromIntegral . Map.size . lambdaContexts
+enterScope :: EvalMonad Scope
+enterScope = lift ScopeResolver.enter
 
-type EvalMonad a = StateT EvaluationState (ExceptT LispError (Reader EvaluationEnv)) a
+exitScope :: EvalMonad (Maybe Scope)
+exitScope = lift ScopeResolver.exit
+
+currentScope :: EvalMonad Scope
+currentScope = lift ScopeResolver.current
+
+switchToScope :: ScopeId -> EvalMonad Scope
+switchToScope = lift . ScopeResolver.switchToScope
+
+deleteScope :: ScopeId -> EvalMonad Scope
+deleteScope = lift . ScopeResolver.deleteScope

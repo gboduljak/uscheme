@@ -1,30 +1,48 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Scoping.Resolver (Resolver (..), ResolverState (..), current, lookup, enter, exit, getInitialState, extend) where
+module Scoping.ScopeResolver
+  ( ScopeResolver (..),
+    ScopeContext (..),
+    current,
+    lookup,
+    enter,
+    exit,
+    extend,
+    switchToScope,
+    deleteScope,
+    getInitialScopeContext,
+    runScopeResolver,
+  )
+where
 
 import Ast (LispVal)
-import Control.Monad.State (MonadState (get, put), State, gets)
+import Control.Monad.Identity (Identity (Identity), Monad (return))
+import Control.Monad.State (MonadState (get, put), State, StateT (StateT), gets, runState)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Scoping.Scope (Binding, Scope (..), ScopeId, parentId, rootScope)
 import qualified Scoping.Scope as Scope (extend, lookup)
 import Prelude hiding (id, lookup)
 
-data ResolverState = ResolverState
+data ScopeContext = ScopeContext
   { scopes :: Map ScopeId Scope,
     currentScopeId :: ScopeId
   }
+  deriving (Show)
 
-type Resolver a = State ResolverState a
+type ScopeResolver a = StateT ScopeContext Identity a
 
-getInitialState :: ResolverState
-getInitialState =
-  ResolverState
+runScopeResolver :: s -> State s a -> (a, s)
+runScopeResolver context resolver = runState resolver context
+
+getInitialScopeContext :: ScopeContext
+getInitialScopeContext =
+  ScopeContext
     { scopes = Map.fromList [(0, rootScope)],
       currentScopeId = 0
     }
 
-createScope :: Maybe ScopeId -> Resolver Scope
+createScope :: Maybe ScopeId -> ScopeResolver Scope
 createScope parentId = do
   nextScopeId <- gets (Map.size . scopes)
   return
@@ -35,18 +53,40 @@ createScope parentId = do
         }
     )
 
-getScope :: ScopeId -> Resolver Scope
+deleteScope :: ScopeId -> ScopeResolver Scope
+deleteScope scopeId = do
+  scopes <- gets scopes
+  currentScopeId <- gets currentScopeId
+  deletedScope <- getScope scopeId
+  put
+    ScopeContext
+      { currentScopeId = currentScopeId,
+        scopes = Map.delete scopeId scopes
+      }
+  return deletedScope
+
+getScope :: ScopeId -> ScopeResolver Scope
 getScope scopeId = do
   scopes <- gets scopes
   let currentScope = snd $ Map.elemAt scopeId scopes
    in return currentScope
 
-current :: Resolver Scope
+current :: ScopeResolver Scope
 current = do
   currentScopeId <- gets currentScopeId
   getScope currentScopeId
 
-extend :: Binding -> Resolver Binding
+switchToScope :: ScopeId -> ScopeResolver Scope
+switchToScope scopeId = do
+  scopes <- gets scopes
+  put
+    ScopeContext
+      { currentScopeId = scopeId,
+        scopes = scopes
+      }
+  current
+
+extend :: Binding -> ScopeResolver Scope
 extend binding =
   do
     scope <- current
@@ -54,18 +94,18 @@ extend binding =
     let scope' = Scope.extend scope binding
      in do
           put
-            ResolverState
+            ScopeContext
               { currentScopeId = id scope,
                 scopes = Map.insert (id scope) scope' scopes
               }
-          return binding
+          current
 
-lookup :: String -> Resolver (Maybe LispVal)
+lookup :: String -> ScopeResolver (Maybe LispVal)
 lookup name = do
   currentScopeId <- gets currentScopeId
   lookupIn currentScopeId name
 
-lookupIn :: ScopeId -> String -> Resolver (Maybe LispVal)
+lookupIn :: ScopeId -> String -> ScopeResolver (Maybe LispVal)
 lookupIn scopeId name = do
   scope <- getScope scopeId
   case Scope.lookup scope name of
@@ -74,26 +114,26 @@ lookupIn scopeId name = do
       (Just parentId) -> lookupIn parentId name
       _ -> return Nothing
 
-enter :: Resolver Scope
+enter :: ScopeResolver Scope
 enter = do
   scopeId <- gets currentScopeId
   scopes <- gets scopes
   newScope <- createScope (Just scopeId)
   put
-    ResolverState
+    ScopeContext
       { currentScopeId = id newScope,
         scopes = Map.insert (id newScope) newScope scopes
       }
   return newScope
 
-exit :: Resolver (Maybe Scope)
+exit :: ScopeResolver (Maybe Scope)
 exit = do
   scope <- current
   scopes <- gets scopes
   case parentId scope of
     (Just id) -> do
       put
-        ResolverState
+        ScopeContext
           { currentScopeId = id,
             scopes = scopes
           }

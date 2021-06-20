@@ -3,35 +3,20 @@ module Main where
 import Ast
 import Control.Monad.State
 import qualified Data.Map as Map
-import EvalMonad (EvalMonad (..), EvaluationEnv (..), EvaluationState (..))
-import Evaluator (performEval)
+import EvalMonad (EvalMonad (..))
+import Evaluator (evaluateOn)
 import Lib (parse, parseAndEval)
-import Parser
+import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext)
 import System.IO (hFlush, stdout)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Text.ParserCombinators.Parsec.Error (ParseError)
 
-flushStr :: String -> IO ()
-flushStr str = putStr str >> hFlush stdout
+main :: IO ()
+main = do
+  x <- runStateT repl getInitialScopeContext
+  return ()
 
-readPrompt :: String -> IO String
-readPrompt prompt = flushStr prompt >> getLine
-
-initialEvalEnv :: EvaluationEnv
-initialEvalEnv = Env {variables = Map.empty, isGlobal = True}
-
-initialState :: EvaluationState
-initialState =
-  St
-    { globalEnv = initialEvalEnv,
-      lambdaContexts = Map.empty
-    }
-
-evalAndPrint :: String -> IO ()
-evalAndPrint expr = do
-  putStrLn (parseAndEval expr)
-
-repl :: StateT EvaluationState IO ()
+repl :: StateT ScopeContext IO ()
 repl = do
   x <- liftIO $ readPrompt "uscheme >>> "
   if x == "(quit)"
@@ -39,19 +24,22 @@ repl = do
     else do
       case parse x of
         (Right parseTree) -> do
-          currentState <- get
-          case performEval parseTree (globalEnv currentState) currentState of
-            (Left error) -> do
+          currentCtx <- get
+          case evaluateOn parseTree currentCtx of
+            (Left error, _) -> do
               liftIO $ print error
               repl
-            (Right (val, state)) -> do
-              put state
-              liftIO $ print val
-              liftIO $ print state
+            (Right value, newCtx) -> do
+              put newCtx
+              liftIO $ print value
+              liftIO $ print newCtx
               repl
         (Left error) -> do
           liftIO $ print error
           repl
 
-main :: IO ()
-main = runStateT repl initialState >>= print
+flushStr :: String -> IO ()
+flushStr str = putStr str >> hFlush stdout
+
+readPrompt :: String -> IO String
+readPrompt prompt = flushStr prompt >> getLine

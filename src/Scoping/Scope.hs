@@ -24,6 +24,7 @@ data Scope = Scope
     parentId :: Maybe ScopeId,
     symbolTable :: Map String LispVal
   }
+  deriving (Show)
 
 extend :: Scope -> Binding -> Scope
 extend scope (name, value) =

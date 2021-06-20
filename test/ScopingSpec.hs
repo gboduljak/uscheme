@@ -3,22 +3,21 @@ module ScopingSpec (scopingSpec) where
 import Ast (LispVal (..))
 import Control.Monad.State (Monad (return), gets, runState)
 import qualified Data.Map as Map (size)
-import Evaluator (LispError (..), performEvalEmpty)
 import Helpers (fails)
 import Parser (expr)
-import Scoping.Resolver (Resolver (..), ResolverState (..), current, enter, exit, extend, getInitialState, lookup)
 import Scoping.Scope (Scope (..), ScopeId)
+import Scoping.ScopeResolver (ScopeContext (..), ScopeResolver (..), current, enter, exit, extend, getInitialScopeContext, lookup)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import qualified Text.ParserCombinators.Parsec as Parsec (ParseError, parse)
 import Prelude hiding (id, lookup)
 
-enterFromRoot :: Resolver Bool
+enterFromRoot :: ScopeResolver Bool
 enterFromRoot = do
   enter
   scope <- current
   return (id scope == 1)
 
-resolveClosest :: Resolver [Maybe LispVal]
+resolveClosest :: ScopeResolver [Maybe LispVal]
 resolveClosest = do
   extend ("x", Number 1)
   enter
@@ -35,7 +34,7 @@ resolveClosest = do
   resolve4 <- lookup "x"
   return [resolve1, resolve2, resolve3, resolve4]
 
-resolveDeep :: Resolver (Maybe LispVal, Int)
+resolveDeep :: ScopeResolver (Maybe LispVal, Int)
 resolveDeep = do
   extend ("x", Number 1)
   enter
@@ -47,15 +46,30 @@ resolveDeep = do
   y <- gets (Map.size . scopes)
   return (x, y)
 
+resolveDeep2 :: ScopeResolver (Maybe LispVal, Int)
+resolveDeep2 = do
+  extend ("x", Number 1)
+  enter
+  enter
+  enter
+  enter
+  enter
+  x <- lookup "y"
+  y <- gets (Map.size . scopes)
+  return (x, y)
+
 scopingSpec :: Spec
 scopingSpec = do
   describe "scoping spec" $ do
     it "should enter from root" $ do
-      let (result, state) = runState enterFromRoot getInitialState
+      let (result, state) = runState enterFromRoot getInitialScopeContext
        in result `shouldBe` True
     it "should resolve closest" $ do
-      let (result, state) = runState resolveClosest getInitialState
+      let (result, state) = runState resolveClosest getInitialScopeContext
        in result `shouldBe` [Just (Number 3), Just (Number 3), Just (Number 2), Just (Number 1)]
     it "should resolve deep" $ do
-      let (result, state) = runState resolveDeep getInitialState
+      let (result, state) = runState resolveDeep getInitialScopeContext
        in result `shouldBe` (Just (Number 1), 6)
+    it "should resolve deep2" $ do
+      let (result, state) = runState resolveDeep2 getInitialScopeContext
+       in result `shouldBe` (Nothing, 6)

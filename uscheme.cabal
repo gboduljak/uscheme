@@ -34,6 +34,8 @@ library
       Evaluators.EquivalencePrimitives
       Evaluators.ExpToolkit
       Evaluators.FuncToolkit
+      Evaluators.Lambda
+      Evaluators.Let
       Evaluators.ListPrimitives
       Evaluators.Primitives
       Evaluators.StringPrimitives
@@ -41,8 +43,8 @@ library
       Lib
       LispError
       Parser
-      Scoping.Resolver
       Scoping.Scope
+      Scoping.ScopeResolver
       Utils.List
   other-modules:
       Paths_uscheme

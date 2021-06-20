@@ -4,7 +4,7 @@ import Ast (LispVal (..))
 import Text.Parsec (ParseError)
 
 data LispError
-  = NumArgs Integer [LispVal]
+  = NumArgs Int [LispVal]
   | TypeMismatch String LispVal
   | BadSpecialForm String LispVal
   | NotFunction String String
