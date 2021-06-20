@@ -4,33 +4,6 @@ module Evaluators.Let (eval) where
 
 import Ast (LispVal (Atom, Bool, Lambda, List))
 import qualified Control.Arrow as Data.Bifunctor
--- import qualified Data.Map as Map
--- import EvalMonad
---   ( EvalMonad,
---     EvaluationEnv (..),
---     EvaluationState (St, globalEnv, lambdaContexts),
---   )
-
--- import qualified Data.Map as Map
--- import EvalMonad
---   ( EvalMonad,
---     EvaluationEnv (..),
---     EvaluationState (St, globalEnv, lambdaContexts),
---   )
--- import qualified Data.Map as Map
--- import EvalMonad
---   ( EvalMonad,
---     EvaluationEnv (..),
---     EvaluationState (St, globalEnv, lambdaContexts),
---   )
-
--- import qualified Data.Map as Map
--- import EvalMonad
---   ( EvalMonad,
---     EvaluationEnv (..),
---     EvaluationState (St, globalEnv, lambdaContexts),
---   )
-
 import Control.Monad (foldM, sequence_)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ask, asks, local)

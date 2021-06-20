@@ -49,7 +49,7 @@ applyLambda lambda@Lambda {args, body, targetScopeId} argExprs evaluate = do
       exitScope
 
       switchToScope (id callerScope)
-      deleteScope (id lambdaScope)
+      -- deleteScope (id lambdaScope) # tempting, but causes nasty infinite loop with curried functions
 
       return lambdaRetVal
     else throwError (NumArgs (length args) argExprs)
