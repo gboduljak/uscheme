@@ -21,6 +21,7 @@ import Evaluators.EquivalencePrimitives (eqv)
 import qualified Evaluators.Lambda as Lambda (eval)
 import qualified Evaluators.Let as Let (eval)
 import Evaluators.Primitives (primitives)
+import qualified Evaluators.Set as Set
 import LispError (LispError (..))
 import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext, runScopeResolver)
 import Text.Parsec
@@ -49,7 +50,10 @@ eval expr@(List [Atom "let", List pairs, body]) = Let.eval expr eval
 eval expr@(List [Atom "define", DottedList args arg, funcBody]) = Define.eval expr eval
 eval expr@(List [Atom "define", List (funcNameExpr : funcArgs), funcBody]) = Define.eval expr eval
 eval expr@(List [Atom "define", funcNameExpr, bindingValExpr]) = Define.eval expr eval
-eval expr@(List [Atom "lambda", List args, body]) = Lambda.eval expr
+eval expr@(List [Atom "set!", bindingName, bindingValueExpr]) = Set.eval expr eval
+eval expr@(List (Atom "lambda" : List args : body)) = Lambda.eval expr
+eval expr@(List (Atom "lambda" : DottedList args (Atom varargs) : body)) = Lambda.eval expr
+eval expr@(List (Atom "lambda" : (Atom varargs) : body)) = Lambda.eval expr
 eval expr@(List [Atom "if", pred, conseq]) = do
   evaledPred <- eval pred
   case evaledPred of

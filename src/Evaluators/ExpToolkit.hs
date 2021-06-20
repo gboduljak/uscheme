@@ -8,10 +8,11 @@ module Evaluators.ExpToolkit
     unpackNum,
     unpackStr,
     unpackBool,
+    unpackAtomValue,
   )
 where
 
-import Ast (LispVal (Bool, Number, String))
+import Ast (LispVal (Atom, Bool, Number, String))
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
 import Control.Monad.Reader (Reader)
 import Data.Functor ((<&>))
@@ -51,3 +52,7 @@ unpackStr notStr = throwError (TypeMismatch "string" notStr)
 unpackBool :: LispVal -> EvalMonad Bool
 unpackBool (Bool b) = return b
 unpackBool notBool = throwError (TypeMismatch "bool" notBool)
+
+unpackAtomValue :: LispVal -> EvalMonad String
+unpackAtomValue (Atom value) = return value
+unpackAtomValue notAtom = throwError (TypeMismatch "atom" notAtom)

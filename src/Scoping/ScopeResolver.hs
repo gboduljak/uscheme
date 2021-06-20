@@ -10,6 +10,7 @@ module Scoping.ScopeResolver
     extend,
     switchToScope,
     deleteScope,
+    updateInOwningScope,
     getInitialScopeContext,
     runScopeResolver,
   )
@@ -86,6 +87,23 @@ switchToScope scopeId = do
       }
   current
 
+updateInOwningScope :: Binding -> ScopeResolver Binding
+updateInOwningScope binding@(name, value) = do
+  scopes <- gets scopes
+  currentScopeId <- gets currentScopeId
+  match <- lookupIn currentScopeId name
+  case match of
+    (Just (_, ownerScopeId)) -> do
+      ownerScope <- getScope ownerScopeId
+      let ownerScope' = Scope.extend ownerScope binding
+      put
+        ScopeContext
+          { currentScopeId = currentScopeId,
+            scopes = Map.insert ownerScopeId ownerScope' scopes
+          }
+      return binding
+    Nothing -> return binding
+
 extend :: Binding -> ScopeResolver Scope
 extend binding =
   do
@@ -103,13 +121,16 @@ extend binding =
 lookup :: String -> ScopeResolver (Maybe LispVal)
 lookup name = do
   currentScopeId <- gets currentScopeId
-  lookupIn currentScopeId name
+  match <- lookupIn currentScopeId name
+  case match of
+    (Just (value, scope)) -> return (Just value)
+    Nothing -> return Nothing
 
-lookupIn :: ScopeId -> String -> ScopeResolver (Maybe LispVal)
+lookupIn :: ScopeId -> String -> ScopeResolver (Maybe (LispVal, ScopeId))
 lookupIn scopeId name = do
   scope <- getScope scopeId
   case Scope.lookup scope name of
-    (Just entry) -> return (Just entry)
+    (Just entry) -> return (Just (entry, scopeId))
     _ -> case parentId scope of
       (Just parentId) -> lookupIn parentId name
       _ -> return Nothing

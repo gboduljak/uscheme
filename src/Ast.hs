@@ -14,13 +14,12 @@ data LispVal
   | Number Integer
   | String String
   | Bool Bool
-  | PrimitiveFunction
-      { name :: String
-      }
+  | PrimitiveFunction {name :: String}
   | Lambda
       { args :: [String],
-        body :: LispVal,
-        targetScopeId :: Int
+        body :: [LispVal],
+        targetScopeId :: Int,
+        varargs :: Maybe String
       }
   deriving (Show, Eq)
 

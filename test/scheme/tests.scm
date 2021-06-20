@@ -28,6 +28,12 @@ lambda (n) (
 (ackermann 3 3)
 ; 61
 
+(define (counter inc) (lambda (x) (set! inc (+ x inc)) inc ))
+(define my-count (counter 5))
+(my-count 3); 8;
+(my-count 6); 14;
+(my-count 5); 5;
+
 (let ((a 5) (b 6)) (let  ((a 10)) a )) 
 ; 10
 (let ((a 5) (b 6)) (let  ((a 10)) b )) 

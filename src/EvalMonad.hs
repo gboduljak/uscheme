@@ -11,6 +11,7 @@ module EvalMonad
     EvalMonad.exitScope,
     EvalMonad.switchToScope,
     EvalMonad.currentScope,
+    EvalMonad.updateInOwningScope,
   )
 where
 
@@ -33,6 +34,7 @@ import qualified Scoping.ScopeResolver as ScopeResolver
     extend,
     lookup,
     switchToScope,
+    updateInOwningScope,
   )
 import Prelude hiding (lookup)
 
@@ -58,3 +60,6 @@ switchToScope = lift . ScopeResolver.switchToScope
 
 deleteScope :: ScopeId -> EvalMonad Scope
 deleteScope = lift . ScopeResolver.deleteScope
+
+updateInOwningScope :: Binding -> EvalMonad Binding
+updateInOwningScope = lift . ScopeResolver.updateInOwningScope

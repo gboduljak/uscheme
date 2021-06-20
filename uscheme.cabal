@@ -38,6 +38,7 @@ library
       Evaluators.Let
       Evaluators.ListPrimitives
       Evaluators.Primitives
+      Evaluators.Set
       Evaluators.StringPrimitives
       Lexer
       Lib

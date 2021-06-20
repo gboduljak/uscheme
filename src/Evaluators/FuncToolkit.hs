@@ -14,18 +14,19 @@ import LispError (LispError (BadSpecialForm, Default))
 import Scoping.Scope (Scope (id))
 import Prelude hiding (id)
 
-buildFunction :: String -> [LispVal] -> LispVal -> EvalMonad LispVal
-buildFunction funcName = buildLambda
+buildFunction :: String -> [LispVal] -> [LispVal] -> EvalMonad LispVal
+buildFunction funcName args body = buildLambda args Nothing body
 
-buildLambda :: [LispVal] -> LispVal -> EvalMonad LispVal
-buildLambda lambdaArgs lambdaBody = do
+buildLambda :: [LispVal] -> Maybe String -> [LispVal] -> EvalMonad LispVal
+buildLambda lambdaArgs varArg lambdaBody = do
   lambdaArgNames <- mapM getAtomValue lambdaArgs
   lambdaScopeId <- currentScope
   let lambda =
         Lambda
           { args = lambdaArgNames,
             body = lambdaBody,
-            targetScopeId = id lambdaScopeId
+            targetScopeId = id lambdaScopeId,
+            varargs = varArg
           }
   return lambda
 

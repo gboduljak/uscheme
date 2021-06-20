@@ -2,7 +2,7 @@
 
 module Evaluators.Lambda (eval) where
 
-import Ast (LispVal (Atom, Bool, Lambda, List))
+import Ast (LispVal (Atom, Bool, DottedList, Lambda, List, varargs))
 import qualified Control.Arrow as Data.Bifunctor
 import Control.Monad (foldM, sequence_)
 import Control.Monad.Except (throwError)
@@ -13,9 +13,14 @@ import Data.Bifunctor (second)
 import Data.Foldable (traverse_)
 import Data.Functor (($>))
 import EvalMonad (EvalMonad, currentScope, enterScope, exitScope, extendScope)
+import Evaluators.ExpToolkit (unpackAtomValue)
 import Evaluators.FuncToolkit (buildLambda)
 import LispError (LispError (BadSpecialForm))
 
 eval :: LispVal -> EvalMonad LispVal
-eval expr@(List [Atom "lambda", List args, body]) = buildLambda args body
+eval (List (Atom "lambda" : List args : body)) = buildLambda args Nothing body
+eval (List (Atom "lambda" : DottedList args (Atom varargs) : body)) =
+  buildLambda args (Just varargs) body
+eval (List (Atom "lambda" : (Atom varargs) : body)) =
+  buildLambda [] (Just varargs) body
 eval expr = throwError (BadSpecialForm "ill-formed lambda definition: " expr)
