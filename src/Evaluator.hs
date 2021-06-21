@@ -2,7 +2,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluator (evaluateOnEmptyContext, evaluateOn, evaluateOnBatch) where
+module Evaluator
+  ( evaluateOnEmptyContext,
+    evaluate,
+    evaluateMany,
+    evaluateManyParallel,
+  )
+where
 
 import Ast (LispVal (..))
 import Control.Monad (foldM)
@@ -29,21 +35,24 @@ import Scoping.ScopeResolver
     runScopeResolver,
   )
 
-evaluateOnBatch :: [LispVal] -> ScopeContext -> (Either LispError LispVal, ScopeContext)
-evaluateOnBatch exprs initCtx =
+evaluateMany :: [LispVal] -> ScopeContext -> (Either LispError LispVal, ScopeContext)
+evaluateMany exprs initCtx =
   foldl
-    ( \a x -> case a of
-        err@(Left error, ctx) -> err
-        (Right value, ctx) -> evaluateOn x ctx
+    ( \acc exp -> case acc of
+        error@(Left _, _) -> error
+        (Right value, ctx) -> evaluate exp ctx
     )
     (Right (Atom "init"), initCtx)
     exprs
 
-evaluateOn :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
-evaluateOn expr = runIdentity . runStateT (runExceptT (eval expr))
+evaluateManyParallel :: [LispVal] -> ScopeContext -> [(Either LispError LispVal, ScopeContext)]
+evaluateManyParallel exprs initCtx = map (`evaluate` initCtx) exprs
+
+evaluate :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
+evaluate expr = runIdentity . runStateT (runExceptT (eval expr))
 
 evaluateOnEmptyContext :: LispVal -> (Either LispError LispVal, ScopeContext)
-evaluateOnEmptyContext expr = evaluateOn expr getInitialScopeContext
+evaluateOnEmptyContext expr = evaluate expr getInitialScopeContext
 
 eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val

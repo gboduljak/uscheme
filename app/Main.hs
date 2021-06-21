@@ -4,7 +4,7 @@ import Ast
 import Control.Monad.State
 import qualified Data.Map as Map
 import EvalMonad (EvalMonad (..))
-import Evaluator (evaluateOn, evaluateOnBatch)
+import Evaluator (evaluateMany)
 import Parser (parse)
 import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext)
 import System.IO (hFlush, stdout)
@@ -25,7 +25,7 @@ repl = do
       case parse x of
         (Right exprs) -> do
           currentCtx <- get
-          case evaluateOnBatch exprs currentCtx of
+          case evaluateMany exprs currentCtx of
             (Left error, _) -> do
               liftIO $ print error
               repl
