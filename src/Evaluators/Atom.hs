@@ -9,7 +9,7 @@ import EvalMonad
   ( EvalMonad,
     lookup,
   )
-import qualified Evaluators.Primitives as Primitives (lookup, primitives)
+import qualified Evaluators.Primitives.Primitives as Primitives (lookup, primitives)
 import LispError (LispError (BadSpecialForm, UnboundVar))
 import Prelude hiding (lookup)
 

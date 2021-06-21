@@ -13,11 +13,10 @@ import Data.Functor (($>))
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
 import EvalMonad (EvalMonad, currentScope, deleteScope, enterScope, exitScope, extendScope, switchToScope)
-import Evaluators.Primitives (primitives)
-import qualified Evaluators.Primitives as Primitives (lookup)
+import Evaluators.Primitives.Primitives (lookup, primitives)
 import LispError (LispError (BadSpecialForm, Default, NotFunction, NumArgs))
 import Scoping.Scope (Scope (parentId), id)
-import Prelude hiding (id)
+import Prelude hiding (id, lookup)
 
 eval :: LispVal -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 eval expr@(List (head : args)) evaluate = do
@@ -25,15 +24,15 @@ eval expr@(List (head : args)) evaluate = do
   case funcToApply of
     lambda@Lambda {} -> applyLambda lambda args evaluate
     primitive@PrimitiveFunction {} -> applyPrimitive primitive args evaluate
-    _ -> throwError (BadSpecialForm "Invalid application expression: " expr)
+    _ -> throwError (BadSpecialForm "invalid application expression: " expr)
 
 applyPrimitive :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 applyPrimitive PrimitiveFunction {name} args evaluate = do
-  case Primitives.lookup name of
+  case lookup name of
     (Just funcBody) -> do
       evaledArgs <- mapM evaluate args
       funcBody evaledArgs
-    Nothing -> throwError (NotFunction "Unrecognised primitive function: " name)
+    Nothing -> throwError (NotFunction "unrecognised primitive function: " name)
 
 applyLambda :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate = do
@@ -47,7 +46,7 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
       enterScope
       lambdaScope <- currentScope
       bindArgs (zip args argsValues)
-      bindVarArgs
+      bindVarArgs argsValues
       lambdaRetVal <- last <$> mapM evaluate body
       exitScope
 
@@ -57,8 +56,10 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
       return lambdaRetVal
   where
     bindArgs = traverse_ extendScope
-    bindVarArgs = case varargs of
-      (Just varArgBindName) -> do extendScope (varArgBindName, List varArgsToBind)
+    bindVarArgs argsValues = case varargs of
+      (Just varArgBindName) -> do
+        evaledVarArgs <- varArgsToBind argsValues
+        do extendScope (varArgBindName, List evaledVarArgs)
       Nothing -> do currentScope
       where
-        varArgsToBind = drop (length args) argExprs
+        varArgsToBind allArgs = return (drop (length args) allArgs)

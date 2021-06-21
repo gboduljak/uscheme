@@ -7,14 +7,14 @@ where
 import Ast
 import Data.Char
 import Evaluator (LispError (ParserError), evaluateOnEmptyContext)
+import Lexer (spaces)
 import LispError (LispError)
 import Parser (expr)
 import qualified Text.Parsec as Parsec (parse)
-import Text.Parsec.Token
-import Text.ParserCombinators.Parsec (ParseError)
+import Text.ParserCombinators.Parsec (ParseError, skipMany)
 
 parse :: String -> Either ParseError LispVal
-parse = Parsec.parse expr ""
+parse = Parsec.parse (spaces >> expr) ""
 
 parseAndEval :: String -> String
 parseAndEval xs = case parseResult of

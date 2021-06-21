@@ -8,13 +8,6 @@ import Control.Monad.State (put)
 import Control.Monad.Trans.State (gets)
 import Data.Bifunctor (second)
 import Data.Functor (($>))
--- import qualified Data.Map as Map
--- import EvalMonad
---   ( EvalMonad,
---     EvaluationEnv (..),
---     EvaluationState (St, globalEnv, lambdaContexts),
---   )
-
 import EvalMonad (EvalMonad, extendScope)
 import Evaluators.FuncToolkit (buildFunction, buildLambda)
 import LispError (LispError (BadSpecialForm))

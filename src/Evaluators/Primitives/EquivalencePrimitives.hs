@@ -1,4 +1,4 @@
-module Evaluators.EquivalencePrimitives where
+module Evaluators.Primitives.EquivalencePrimitives where
 
 import Ast (LispVal (Atom, Bool, DottedList, List, Number, String))
 import EvalMonad (EvalMonad)

@@ -15,7 +15,7 @@ import Scoping.Scope (Scope (id))
 import Prelude hiding (id)
 
 buildFunction :: String -> [LispVal] -> [LispVal] -> EvalMonad LispVal
-buildFunction funcName args body = buildLambda args Nothing body
+buildFunction funcName args = buildLambda args Nothing
 
 buildLambda :: [LispVal] -> Maybe String -> [LispVal] -> EvalMonad LispVal
 buildLambda lambdaArgs varArg lambdaBody = do

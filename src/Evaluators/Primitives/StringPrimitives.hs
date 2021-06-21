@@ -1,10 +1,9 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluators.StringPrimitives (stringPrimitives) where
+module Evaluators.Primitives.StringPrimitives (stringPrimitives) where
 
 import Ast (LispVal (Atom, Bool))
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
-import Control.Monad.Reader
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map

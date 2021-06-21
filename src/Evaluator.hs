@@ -5,9 +5,8 @@
 module Evaluator (evaluateOnEmptyContext, evaluateOn, LispError (..)) where
 
 import Ast (LispVal (..))
-import Control.Monad
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), runExcept, runExceptT)
-import Control.Monad.Identity
+import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), Reader, asks, runReader)
 import Control.Monad.State (MonadState (get, put), StateT (runStateT), gets)
 import Data.Functor (($>), (<&>))
@@ -17,14 +16,13 @@ import EvalMonad (EvalMonad (..))
 import qualified Evaluators.Application as Application (eval)
 import qualified Evaluators.Atom as Atom (eval)
 import qualified Evaluators.Define as Define (eval)
-import Evaluators.EquivalencePrimitives (eqv)
 import qualified Evaluators.Lambda as Lambda (eval)
 import qualified Evaluators.Let as Let (eval)
-import Evaluators.Primitives (primitives)
+import Evaluators.Primitives.EquivalencePrimitives (eqv)
+import Evaluators.Primitives.Primitives (primitives)
 import qualified Evaluators.Set as Set
 import LispError (LispError (..))
 import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext, runScopeResolver)
-import Text.Parsec
 import Utils.List (evens, odds)
 
 evaluateOn :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
@@ -37,6 +35,7 @@ eval :: LispVal -> EvalMonad LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
+eval expr@(Atom "nil") = return (List [])
 eval expr@(Atom name) = Atom.eval expr
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
@@ -46,6 +45,7 @@ eval (List [Atom "if", pred, conseq, alt]) = do
     (Bool False) -> eval alt
     (Bool True) -> eval conseq
     _ -> throwError (TypeMismatch "bool" evaledPred)
+eval (List (Atom "begin" : rest)) = last <$> mapM eval rest
 eval expr@(List [Atom "let", List pairs, body]) = Let.eval expr eval
 eval expr@(List [Atom "define", DottedList args arg, funcBody]) = Define.eval expr eval
 eval expr@(List [Atom "define", List (funcNameExpr : funcArgs), funcBody]) = Define.eval expr eval
@@ -74,7 +74,7 @@ eval expr@(List (Atom "case" : key : clauses)) = do
           else return eval expr (List (Atom "case" : key : tail clauses))
       _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
 eval expr@(List (head : args)) = Application.eval expr eval
-eval expr = throwError (BadSpecialForm "Unrecognized special form" expr)
+eval expr = throwError (BadSpecialForm "unrecognized special form" expr)
 
 cond :: [LispVal] -> EvalMonad LispVal
 cond [List [Atom "else", value]] = eval value
@@ -83,7 +83,7 @@ cond ((List [condition, value]) : alts) = do
   case condPred of
     (Bool True) -> eval value
     (Bool False) -> cond alts
-    _ -> throwError $ Default "Cond predicate evaluated to a non bool value."
+    _ -> throwError $ Default "cond predicate evaluated to a non bool value."
 cond ((List a) : _) = throwError $ NumArgs 2 a
 cond (a : _) = throwError $ NumArgs 2 [a]
-cond _ = throwError $ Default "Not viable alternative in cond"
+cond _ = throwError $ Default "not viable alternative in cond"

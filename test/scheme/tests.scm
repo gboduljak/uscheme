@@ -65,3 +65,6 @@ x
 
 (define (curry func arg1)  (lambda (arg) (func arg1 arg)))
 (define (sumWith5 x) ((curry + 5) x ))
+
+
+(let ((x 42) (y (* x 10))) (list x y)); undefined x

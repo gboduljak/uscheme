@@ -31,15 +31,15 @@ library
       Evaluators.Application
       Evaluators.Atom
       Evaluators.Define
-      Evaluators.EquivalencePrimitives
       Evaluators.ExpToolkit
       Evaluators.FuncToolkit
       Evaluators.Lambda
       Evaluators.Let
-      Evaluators.ListPrimitives
-      Evaluators.Primitives
+      Evaluators.Primitives.EquivalencePrimitives
+      Evaluators.Primitives.ListPrimitives
+      Evaluators.Primitives.Primitives
+      Evaluators.Primitives.StringPrimitives
       Evaluators.Set
-      Evaluators.StringPrimitives
       Lexer
       Lib
       LispError

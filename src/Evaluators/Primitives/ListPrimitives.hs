@@ -1,4 +1,4 @@
-module Evaluators.ListPrimitives (listPrimitives) where
+module Evaluators.Primitives.ListPrimitives (listPrimitives) where
 
 import Ast (LispVal (Bool, DottedList, List))
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
@@ -11,16 +11,21 @@ import LispError (LispError (Default, NumArgs, TypeMismatch))
 listPrimitives :: [(String, [LispVal] -> EvalMonad LispVal)]
 listPrimitives =
   [ ("list?", liftUnaryOp isList),
+    ("pair?", liftUnaryOp isPair),
     ("car", car),
     ("cdr", cdr),
     ("cons", cons),
-    ("reverse", Evaluators.ListPrimitives.reverse)
+    ("reverse", Evaluators.Primitives.ListPrimitives.reverse)
   ]
 
 isList :: LispVal -> LispVal
 isList (List _) = Bool True
 isList (DottedList _ _) = Bool True
 isList _ = Bool False
+
+isPair :: LispVal -> LispVal
+isPair (List x) = Bool (not (null x))
+isPair _ = Bool False
 
 car :: [LispVal] -> EvalMonad LispVal
 car [List (x : xs)] = return x
