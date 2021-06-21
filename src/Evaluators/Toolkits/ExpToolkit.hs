@@ -19,7 +19,7 @@ import Data.Functor ((<&>))
 import EvalMonad (EvalMonad)
 import LispError (LispError (NumArgs, TypeMismatch))
 
-type NumericBinOp = (Integer -> Integer -> Integer)
+type NumericBinOp = (Double -> Double -> Double)
 
 type UnaryOp = (LispVal -> LispVal)
 
@@ -41,7 +41,7 @@ liftLogicalBinOp unpack op args
     right <- unpack $ (head . tail) args
     return (Bool (left `op` right))
 
-unpackNum :: LispVal -> EvalMonad Integer
+unpackNum :: LispVal -> EvalMonad Double
 unpackNum (Number x) = return x
 unpackNum notNum = throwError (TypeMismatch "number" notNum)
 

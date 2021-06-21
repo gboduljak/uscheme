@@ -11,7 +11,7 @@ data LispVal
   | List [LispVal]
   | Vector [LispVal]
   | Atom String
-  | Number Integer
+  | Number Double
   | String String
   | Bool Bool
   | PrimitiveFunction {name :: String}

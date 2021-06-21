@@ -100,47 +100,37 @@ boolean = true <|> false
       lexeme $ try (Parsec.string "#f")
       return (Bool False)
 
---todo
 number :: Parser LispVal
-number =
-  Number
-    <$> lexeme (try (radix2) <|> try (radix8) <|> try (radix16) <|> try (radix10))
+number = Number <$> lexeme double
   where
-    radix2 :: Parser Integer
-    radix2 = do
-      Parsec.string "#b"
-      xs <- many1 (oneOf "01")
-      notFollowedBy shouldNotFollowNumber
-      return (asRadix2 xs)
-      where
-        asRadix2 :: [Char] -> Integer
-        asRadix2 = fst . head . readInt 2 (`elem` "01") digitToInt
-    radix8 :: Parser Integer
-    radix8 = do
-      Parsec.string "#o"
-      xs <- many1 (oneOf "01234567")
-      notFollowedBy shouldNotFollowNumber
-      return (asRadix8 xs)
-      where
-        asRadix8 :: [Char] -> Integer
-        asRadix8 = fst . head . readOct
-
-    radix16 :: Parser Integer
-    radix16 = do
-      Parsec.string "#h"
-      xs <- many1 (oneOf "0123456789abcdef")
-      notFollowedBy shouldNotFollowNumber
-      return (asRadix16 xs)
-      where
-        asRadix16 :: [Char] -> Integer
-        asRadix16 = fst . head . readHex
-
-    radix10 :: Parser Integer
-    radix10 = do
+    integer :: Parser Double
+    integer = do
       optional (Parsec.string "#d")
       xs <- many1 digit
-      notFollowedBy shouldNotFollowNumber
       return (read xs)
+
+    double :: Parser Double
+    double = do
+      sign <- sign
+      intPt <- integer
+      next <- lookAhead anyChar
+      if next == '.'
+        then do
+          char '.'
+          afterDotDs <- many1 digit
+          let afterDot = asDouble afterDotDs
+          let fractPt = afterDot / (10 ^ length afterDotDs)
+          return (sign * (intPt + fractPt))
+        else return (sign * intPt)
+      where
+        asDouble :: String -> Double
+        asDouble = read
+
+    sign :: Parser Double
+    sign = negative <|> positive
+      where
+        negative = do try (char '-'); return (-1)
+        positive = do return 1
 
 shouldNotFollowNumber :: Parser ()
 shouldNotFollowNumber = ignore number <|> ignore atom <|> ignore boolean

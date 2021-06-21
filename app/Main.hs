@@ -32,7 +32,7 @@ repl = do
             (Right value, newCtx) -> do
               put newCtx
               liftIO $ print value
-              liftIO $ print newCtx
+              -- liftIO $ print newCtx
               repl
         (Left error) -> do
           liftIO $ print error

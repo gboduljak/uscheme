@@ -1,6 +1,7 @@
 module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primitives.lookup, PrimitiveCallable) where
 
-import Ast (LispVal (Atom, Bool, DottedList, List, Number, String), PrimitiveFunctionKind (Binary, Unary))
+import Ast (LispVal (Atom, Bool, DottedList, List, Number, String, args), PrimitiveFunctionKind (Binary, Unary))
+import Control.Monad.Except (throwError)
 import qualified Data.Map as Map
 import EvalMonad
 import Evaluators.Primitives.EquivalencePrimitives (eqv)
@@ -13,19 +14,21 @@ import Evaluators.Toolkits.ExpToolkit
     unpackBool,
     unpackNum,
   )
+import GHC.Float (int2Double)
+import LispError (LispError (NumArgs))
 
 type PrimitiveCallable = [LispVal] -> EvalMonad LispVal
 
 primitives :: Map.Map String PrimitiveCallable
 primitives =
   Map.fromList
-    ( [ ("+", liftNumericBinOp (+)),
-        ("-", liftNumericBinOp (-)),
+    ( [ ("-", minus),
+        ("+", liftNumericBinOp (+)),
         ("*", liftNumericBinOp (*)),
-        ("/", liftNumericBinOp div),
-        ("mod", liftNumericBinOp mod),
-        ("quotient", liftNumericBinOp quot),
-        ("remainder", liftNumericBinOp rem),
+        ("/", liftNumericBinOp (/)),
+        ("mod", liftNumericBinOp modulo),
+        ("quotient", liftNumericBinOp quotient),
+        ("remainder", liftNumericBinOp remainder),
         ("symbol?", liftUnaryOp isSymbol),
         ("number?", liftUnaryOp isNumber),
         ("bool?", liftUnaryOp isBool),
@@ -44,6 +47,25 @@ primitives =
         ++ listPrimitives
         ++ stringPrimitives
     )
+
+minus :: [LispVal] -> EvalMonad LispVal
+minus [x] = do
+  x' <- unpackNum x
+  return (Number (- x'))
+minus [x, y] = do
+  x' <- unpackNum x
+  y' <- unpackNum y
+  return (Number (x' - y'))
+minus expr = throwError (NumArgs 2 expr)
+
+modulo :: Double -> Double -> Double
+modulo x y = int2Double $ Prelude.mod (round x) (round y)
+
+quotient :: Double -> Double -> Double
+quotient x y = int2Double $ Prelude.mod (round x) (round y)
+
+remainder :: Double -> Double -> Double
+remainder x y = int2Double $ Prelude.rem (round x) (round y)
 
 lookup :: String -> Maybe PrimitiveCallable
 lookup name = Map.lookup name primitives
