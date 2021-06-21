@@ -13,8 +13,21 @@ import Text.ParserCombinators.Parsec.Error (ParseError)
 
 main :: IO ()
 main = do
-  x <- runStateT repl getInitialScopeContext
-  return ()
+  putStrLn "uscheme >>> loading standard library..."
+  stdLib <- readFile "./lib/stdlib.scm"
+  case parse stdLib of
+    (Right exprs) -> do
+      case evaluateMany exprs getInitialScopeContext of
+        (Left error, _) -> do
+          liftIO $ print error
+          return ()
+        (_, ctxWithStdLib) -> do
+          putStrLn "uscheme >>> standard library loaded"
+          runStateT repl ctxWithStdLib
+          return ()
+    (Left error) -> do
+      liftIO $ print error
+      return ()
 
 repl :: StateT ScopeContext IO ()
 repl = do
