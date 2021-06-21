@@ -7,6 +7,7 @@ module Parser
     expr,
     list,
     number,
+    Parser.parse,
   )
 where
 
@@ -15,8 +16,11 @@ import Data.Char
 import Lexer
 import Numeric
 import Text.Parsec.Language
-import Text.ParserCombinators.Parsec hiding (spaces, string, symbol, token)
-import qualified Text.ParserCombinators.Parsec as Parsec (string)
+import Text.ParserCombinators.Parsec (ParseError, Parser, many, try, (<|>))
+import qualified Text.ParserCombinators.Parsec as Parsec (parse, string)
+
+parse :: String -> Either ParseError [LispVal]
+parse = Parsec.parse (spaces >> many expr) ""
 
 expr :: Parser LispVal
 expr = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp

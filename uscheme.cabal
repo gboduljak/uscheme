@@ -31,8 +31,6 @@ library
       Evaluators.Application
       Evaluators.Atom
       Evaluators.Define
-      Evaluators.ExpToolkit
-      Evaluators.FuncToolkit
       Evaluators.Lambda
       Evaluators.Let
       Evaluators.Primitives.EquivalencePrimitives
@@ -40,13 +38,13 @@ library
       Evaluators.Primitives.Primitives
       Evaluators.Primitives.StringPrimitives
       Evaluators.Set
+      Evaluators.Toolkits.ExpToolkit
+      Evaluators.Toolkits.FuncToolkit
       Lexer
-      Lib
       LispError
       Parser
       Scoping.Scope
       Scoping.ScopeResolver
-      Utils.List
   other-modules:
       Paths_uscheme
   hs-source-dirs:
@@ -83,8 +81,9 @@ test-suite uscheme-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Book
+      BookSpec
       Helpers
+      RecursionSpec
       ScopingSpec
       Toys
       Paths_uscheme

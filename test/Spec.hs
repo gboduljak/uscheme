@@ -1,10 +1,13 @@
-import Book (bookSpec)
+import BookSpec (bookEvaluationSpec, bookParsingSpec)
+import RecursionSpec (recursionSpec)
 import ScopingSpec (scopingSpec)
-import Test.Hspec
+import Test.Hspec (hspec)
 import Toys (toysSpec)
 
 main :: IO ()
 main = do
   hspec scopingSpec
   hspec toysSpec
-  hspec bookSpec
+  hspec bookParsingSpec
+  hspec bookEvaluationSpec
+  hspec recursionSpec

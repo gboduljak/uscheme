@@ -17,13 +17,12 @@ where
 
 import Ast (LispVal (..))
 import Control.Monad.Except (ExceptT, MonadError)
-import Control.Monad.Identity
 import Control.Monad.Reader (Reader)
-import Control.Monad.State
+import Control.Monad.State (MonadTrans (lift), State)
 import Data.Map hiding (lookup)
 import LispError (LispError (..))
-import Scoping.Scope
-import Scoping.ScopeResolver
+import Scoping.Scope (Binding, Scope, ScopeId)
+import Scoping.ScopeResolver (ScopeContext)
 import qualified Scoping.ScopeResolver as ScopeResolver
   ( ScopeContext (ScopeContext),
     ScopeResolver,

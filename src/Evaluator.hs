@@ -2,9 +2,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluator (evaluateOnEmptyContext, evaluateOn, LispError (..)) where
+module Evaluator (evaluateOnEmptyContext, evaluateOn, evaluateOnBatch) where
 
 import Ast (LispVal (..))
+import Control.Monad (foldM)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), runExcept, runExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), Reader, asks, runReader)
@@ -22,8 +23,21 @@ import Evaluators.Primitives.EquivalencePrimitives (eqv)
 import Evaluators.Primitives.Primitives (primitives)
 import qualified Evaluators.Set as Set
 import LispError (LispError (..))
-import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext, runScopeResolver)
-import Utils.List (evens, odds)
+import Scoping.ScopeResolver
+  ( ScopeContext (ScopeContext),
+    getInitialScopeContext,
+    runScopeResolver,
+  )
+
+evaluateOnBatch :: [LispVal] -> ScopeContext -> (Either LispError LispVal, ScopeContext)
+evaluateOnBatch exprs initCtx =
+  foldl
+    ( \a x -> case a of
+        err@(Left error, ctx) -> err
+        (Right value, ctx) -> evaluateOn x ctx
+    )
+    (Right (Atom "init"), initCtx)
+    exprs
 
 evaluateOn :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
 evaluateOn expr = runIdentity . runStateT (runExceptT (eval expr))

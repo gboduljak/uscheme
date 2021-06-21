@@ -8,7 +8,7 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import EvalMonad (EvalMonad)
-import Evaluators.ExpToolkit (liftLogicalBinOp, liftUnaryOp, unpackStr)
+import Evaluators.Toolkits.ExpToolkit (liftLogicalBinOp, liftUnaryOp, unpackStr)
 import LispError (LispError (Default, NumArgs, TypeMismatch))
 
 stringPrimitives :: [(String, [LispVal] -> EvalMonad LispVal)]

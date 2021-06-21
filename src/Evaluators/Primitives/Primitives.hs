@@ -3,16 +3,16 @@ module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primi
 import Ast (LispVal (Atom, Bool, DottedList, List, Number, String), PrimitiveFunctionKind (Binary, Unary))
 import qualified Data.Map as Map
 import EvalMonad
-import Evaluators.ExpToolkit
+import Evaluators.Primitives.EquivalencePrimitives (eqv)
+import Evaluators.Primitives.ListPrimitives (listPrimitives)
+import Evaluators.Primitives.StringPrimitives (stringPrimitives)
+import Evaluators.Toolkits.ExpToolkit
   ( liftLogicalBinOp,
     liftNumericBinOp,
     liftUnaryOp,
     unpackBool,
     unpackNum,
   )
-import Evaluators.Primitives.EquivalencePrimitives (eqv)
-import Evaluators.Primitives.ListPrimitives (listPrimitives)
-import Evaluators.Primitives.StringPrimitives (stringPrimitives)
 
 type PrimitiveCallable = [LispVal] -> EvalMonad LispVal
 

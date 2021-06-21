@@ -1,7 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
-module Evaluators.FuncToolkit where
+module Evaluators.Toolkits.FuncToolkit where
 
 import Ast (LispVal (..))
 import Control.Monad.Except (MonadError (throwError))

@@ -23,9 +23,8 @@ import qualified Text.Parsec as P (string)
 import Text.ParserCombinators.Parsec (Parser)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
-
 ignore :: Parser a -> Parser ()
-ignore p =  do { p; return ()}
+ignore p = do p; return ()
 
 spaces :: Parser ()
 spaces = skipMany space
@@ -85,7 +84,7 @@ atom = lexeme symbol <|> lexeme plus <|> lexeme minus <|> lexeme (try ellipsis)
       first <- initial
       rest <- many subsequent
       return (Atom (first : rest))
-    initial = letter <|> oneOf "!$%&*/:<=>?-_^"
+    initial = letter <|> oneOf "!$%&*/|:<=>?-_^"
     subsequent = initial <|> digit <|> oneOf ".+-"
     plus = do char '+'; return (Atom "+")
     minus = do char '-'; return (Atom "-")
@@ -105,13 +104,13 @@ boolean = true <|> false
 number :: Parser LispVal
 number =
   Number
-    <$> lexeme (try (radix2) <|> try (radix8) <|> try (radix16) <|> try (radix10)) 
+    <$> lexeme (try (radix2) <|> try (radix8) <|> try (radix16) <|> try (radix10))
   where
     radix2 :: Parser Integer
     radix2 = do
       Parsec.string "#b"
       xs <- many1 (oneOf "01")
-      notFollowedBy shouldNotFollowNumber;
+      notFollowedBy shouldNotFollowNumber
       return (asRadix2 xs)
       where
         asRadix2 :: [Char] -> Integer
@@ -120,7 +119,7 @@ number =
     radix8 = do
       Parsec.string "#o"
       xs <- many1 (oneOf "01234567")
-      notFollowedBy shouldNotFollowNumber;
+      notFollowedBy shouldNotFollowNumber
       return (asRadix8 xs)
       where
         asRadix8 :: [Char] -> Integer
@@ -130,7 +129,7 @@ number =
     radix16 = do
       Parsec.string "#h"
       xs <- many1 (oneOf "0123456789abcdef")
-      notFollowedBy shouldNotFollowNumber;
+      notFollowedBy shouldNotFollowNumber
       return (asRadix16 xs)
       where
         asRadix16 :: [Char] -> Integer
@@ -140,7 +139,7 @@ number =
     radix10 = do
       optional (Parsec.string "#d")
       xs <- many1 digit
-      notFollowedBy shouldNotFollowNumber;
+      notFollowedBy shouldNotFollowNumber
       return (read xs)
 
 shouldNotFollowNumber :: Parser ()

@@ -9,7 +9,7 @@ import Control.Monad.Trans.State (gets)
 import Data.Bifunctor (second)
 import Data.Functor (($>))
 import EvalMonad (EvalMonad, extendScope)
-import Evaluators.FuncToolkit (buildFunction, buildLambda)
+import Evaluators.Toolkits.FuncToolkit (buildFunction, buildLambda)
 import LispError (LispError (BadSpecialForm))
 
 eval :: LispVal -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal

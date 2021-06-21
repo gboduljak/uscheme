@@ -60,7 +60,7 @@ resolveDeep2 = do
 
 scopingSpec :: Spec
 scopingSpec = do
-  describe "scoping spec" $ do
+  describe "lexical scoping resolution tests..." $ do
     it "should enter from root" $ do
       let (result, state) = runState enterFromRoot getInitialScopeContext
        in result `shouldBe` True

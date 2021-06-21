@@ -4,8 +4,8 @@ import Ast
 import Control.Monad.State
 import qualified Data.Map as Map
 import EvalMonad (EvalMonad (..))
-import Evaluator (evaluateOn)
-import Lib (parse, parseAndEval)
+import Evaluator (evaluateOn, evaluateOnBatch)
+import Parser (parse)
 import Scoping.ScopeResolver (ScopeContext (ScopeContext), getInitialScopeContext)
 import System.IO (hFlush, stdout)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
@@ -23,9 +23,9 @@ repl = do
     then return ()
     else do
       case parse x of
-        (Right parseTree) -> do
+        (Right exprs) -> do
           currentCtx <- get
-          case evaluateOn parseTree currentCtx of
+          case evaluateOnBatch exprs currentCtx of
             (Left error, _) -> do
               liftIO $ print error
               repl

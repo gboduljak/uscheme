@@ -13,8 +13,8 @@ import Data.Bifunctor (second)
 import Data.Foldable (traverse_)
 import Data.Functor (($>))
 import EvalMonad (EvalMonad, currentScope, enterScope, exitScope, extendScope)
-import Evaluators.ExpToolkit (unpackAtomValue)
-import Evaluators.FuncToolkit (buildLambda)
+import Evaluators.Toolkits.ExpToolkit (unpackAtomValue)
+import Evaluators.Toolkits.FuncToolkit (buildLambda)
 import LispError (LispError (BadSpecialForm))
 
 eval :: LispVal -> EvalMonad LispVal

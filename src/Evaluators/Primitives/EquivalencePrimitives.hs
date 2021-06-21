@@ -2,7 +2,7 @@ module Evaluators.Primitives.EquivalencePrimitives where
 
 import Ast (LispVal (Atom, Bool, DottedList, List, Number, String))
 import EvalMonad (EvalMonad)
-import Evaluators.ExpToolkit (unpackBool)
+import Evaluators.Toolkits.ExpToolkit (unpackBool)
 
 eqv :: [LispVal] -> EvalMonad LispVal
 eqv [Bool arg1, Bool arg2] = return (Bool (arg1 == arg2))
