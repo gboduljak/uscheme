@@ -16,9 +16,23 @@ module Lexer
 where
 
 import Ast
-import Data.Char
-import Numeric
-import Text.Parsec hiding (spaces)
+import Text.Parsec
+  ( anyChar,
+    char,
+    digit,
+    letter,
+    lookAhead,
+    many,
+    many1,
+    noneOf,
+    notFollowedBy,
+    oneOf,
+    optional,
+    skipMany,
+    space,
+    try,
+    (<|>),
+  )
 import qualified Text.Parsec as P (string)
 import Text.ParserCombinators.Parsec (Parser)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
@@ -120,8 +134,11 @@ number = Number <$> lexeme double
           afterDotDs <- many1 digit
           let afterDot = asDouble afterDotDs
           let fractPt = afterDot / (10 ^ length afterDotDs)
+          notFollowedBy shouldNotFollowNumber
           return (sign * (intPt + fractPt))
-        else return (sign * intPt)
+        else do
+          notFollowedBy shouldNotFollowNumber
+          return (sign * intPt)
       where
         asDouble :: String -> Double
         asDouble = read
