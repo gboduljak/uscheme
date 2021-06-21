@@ -52,11 +52,7 @@ minus :: [LispVal] -> EvalMonad LispVal
 minus [x] = do
   x' <- unpackNum x
   return (Number (- x'))
-minus [x, y] = do
-  x' <- unpackNum x
-  y' <- unpackNum y
-  return (Number (x' - y'))
-minus expr = throwError (NumArgs 2 expr)
+minus xs = liftNumericBinOp (-) xs
 
 modulo :: Double -> Double -> Double
 modulo x y = int2Double $ Prelude.mod (round x) (round y)

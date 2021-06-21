@@ -20,6 +20,7 @@ import Text.Parsec
   ( anyChar,
     char,
     digit,
+    eof,
     letter,
     lookAhead,
     many,
@@ -27,6 +28,8 @@ import Text.Parsec
     noneOf,
     notFollowedBy,
     oneOf,
+    option,
+    optionMaybe,
     optional,
     skipMany,
     space,
@@ -127,18 +130,21 @@ number = Number <$> lexeme double
     double = do
       sign <- sign
       intPt <- integer
-      next <- lookAhead anyChar
-      if next == '.'
-        then do
-          char '.'
-          afterDotDs <- many1 digit
-          let afterDot = asDouble afterDotDs
-          let fractPt = afterDot / (10 ^ length afterDotDs)
-          notFollowedBy shouldNotFollowNumber
-          return (sign * (intPt + fractPt))
-        else do
-          notFollowedBy shouldNotFollowNumber
-          return (sign * intPt)
+      maybeNext <- lookAhead (optionMaybe anyChar)
+      case maybeNext of
+        (Just next) ->
+          if next == '.'
+            then do
+              char '.'
+              afterDotDs <- many1 digit
+              let afterDot = asDouble afterDotDs
+              let fractPt = afterDot / (10 ^ length afterDotDs)
+              notFollowedBy shouldNotFollowNumber
+              return (sign * (intPt + fractPt))
+            else do
+              notFollowedBy shouldNotFollowNumber
+              return (sign * intPt)
+        _ -> return (sign * intPt)
       where
         asDouble :: String -> Double
         asDouble = read
