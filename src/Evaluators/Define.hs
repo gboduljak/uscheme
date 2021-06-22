@@ -16,11 +16,11 @@ eval :: LispVal -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 eval expr@(List (Atom "define" : List (Atom funcName : funcArgs) : funcBody)) evaluate = do
   lambda <- buildLambda funcArgs Nothing funcBody
   extendScope (funcName, lambda)
-  return (Atom funcName)
+  return lambda
 eval expr@(List (Atom "define" : DottedList (Atom funcName : funcArgs) (Atom varargs) : funcBody)) evaluate = do
   lambda <- buildLambda funcArgs (Just varargs) funcBody
   extendScope (funcName, lambda)
-  return (Atom funcName)
+  return lambda
 eval expr@(List [Atom "define", funcNameExpr, bindingValExpr]) evaluate = do
   case funcNameExpr of
     (Atom name) -> do

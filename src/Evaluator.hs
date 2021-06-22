@@ -72,6 +72,7 @@ eval (List (Atom "begin" : rest)) = last <$> mapM eval rest
 eval expr@(List [Atom "let", List pairs, body]) = Let.eval expr eval
 eval expr@(List [Atom "define", DottedList args arg, funcBody]) = Define.eval expr eval
 eval expr@(List [Atom "define", List (funcNameExpr : funcArgs), funcBody]) = Define.eval expr eval
+eval expr@(List (Atom "define" : List (funcNameExpr : funcArgs) : funcBody)) = Define.eval expr eval
 eval expr@(List [Atom "define", funcNameExpr, bindingValExpr]) = Define.eval expr eval
 eval expr@(List [Atom "set!", bindingName, bindingValueExpr]) = Set.eval expr eval
 eval expr@(List (Atom "lambda" : List args : body)) = Lambda.eval expr

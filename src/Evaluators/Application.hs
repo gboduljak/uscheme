@@ -47,7 +47,7 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
       lambdaScope <- currentScope
       bindArgs (zip args argsValues)
       bindVarArgs argsValues
-      lambdaRetVal <- last <$> mapM evaluate body
+      lambdaRetVal <- evaluateBodies body
       exitScope
 
       switchToScope (id callerScope)
@@ -55,6 +55,10 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
 
       return lambdaRetVal
   where
+    evaluateBodies :: [LispVal] -> EvalMonad LispVal
+    evaluateBodies [x] = evaluate x
+    evaluateBodies (x : xs) = evaluate x >> evaluateBodies xs
+
     bindArgs = traverse_ extendScope
     bindVarArgs argsValues = case varargs of
       (Just varArgBindName) -> do
