@@ -11,9 +11,23 @@ module Parser
   )
 where
 
-import Ast
+import Ast (LispVal (Atom, DottedList, List, Nil, Vector))
 import Data.Char
 import Lexer
+  ( atom,
+    boolean,
+    closeParens,
+    comma,
+    dot,
+    nil,
+    number,
+    openParens,
+    openVec,
+    quasiquote,
+    quote,
+    spaces,
+    string,
+  )
 import Numeric
 import Text.Parsec.Language
 import Text.ParserCombinators.Parsec (ParseError, Parser, many, try, (<|>))
@@ -44,6 +58,7 @@ expr = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp
         <|> try boolean
         <|> string
         <|> atom
+        <|> Nil <$ nil
 
 vector :: Parser LispVal
 vector = do
