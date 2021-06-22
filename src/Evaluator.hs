@@ -19,7 +19,7 @@ import Control.Monad.State (MonadState (get, put), StateT (runStateT), gets)
 import Data.Functor (($>), (<&>))
 import qualified Data.List as List (reverse)
 import qualified Data.Map as Map (Map, empty, fromList, insert, lookup, map)
-import EvalMonad (EvalMonad (..))
+import EvalMonad (EvalMonad (..), display)
 import qualified Evaluators.Application as Application (eval)
 import qualified Evaluators.Atom as Atom (eval)
 import qualified Evaluators.Define as Define (eval)
@@ -28,6 +28,7 @@ import qualified Evaluators.Let as Let (eval)
 import Evaluators.Primitives.EquivalencePrimitives (eqv)
 import Evaluators.Primitives.Primitives (primitives)
 import qualified Evaluators.Set as Set
+import GHC.IO hiding (evaluate)
 import LispError (LispError (..))
 import Scoping.ScopeResolver
   ( ScopeContext (ScopeContext),
@@ -49,17 +50,24 @@ evaluateManyParallel :: [LispVal] -> ScopeContext -> [(Either LispError LispVal,
 evaluateManyParallel exprs initCtx = map (`evaluate` initCtx) exprs
 
 evaluate :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
-evaluate expr = runIdentity . runStateT (runExceptT (eval expr))
+evaluate expr ctx = unsafePerformIO $ runStateT (runExceptT (eval expr)) ctx
 
 evaluateOnEmptyContext :: LispVal -> (Either LispError LispVal, ScopeContext)
 evaluateOnEmptyContext expr = evaluate expr getInitialScopeContext
 
 eval :: LispVal -> EvalMonad LispVal
+eval (List []) = return Nil
+eval Nil = return Nil
 eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
 eval expr@(Atom "nil") = return (List [])
+eval expr@(Atom "newline") = return (IOFunction "display")
 eval expr@(Atom name) = Atom.eval expr
+eval (List [Atom "display", val]) = do
+  x <- eval val
+  display (show x)
+  return (IOFunction "display")
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
 eval (List [Atom "if", pred, conseq, alt]) = do

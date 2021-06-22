@@ -12,6 +12,7 @@ module Lexer
     atom,
     boolean,
     number,
+    nil,
   )
 where
 
@@ -34,6 +35,7 @@ import Text.Parsec
     skipMany,
     space,
     try,
+    (<?>),
     (<|>),
   )
 import qualified Text.Parsec as P (string)
@@ -111,11 +113,14 @@ boolean :: Parser LispVal
 boolean = true <|> false
   where
     true = do
-      lexeme $ try (Parsec.string "#t")
+      lexeme (try (Parsec.string "#t") <|> try (Parsec.string "true"))
       return (Bool True)
     false = do
-      lexeme $ try (Parsec.string "#f")
+      lexeme (try (Parsec.string "#f") <|> try (Parsec.string "false"))
       return (Bool False)
+
+nil :: Parser ()
+nil = try (char '\'' *> Parsec.string "()") *> return () <?> "nil"
 
 number :: Parser LispVal
 number = Number <$> lexeme double

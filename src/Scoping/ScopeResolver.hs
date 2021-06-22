@@ -1,4 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 
 module Scoping.ScopeResolver
   ( ScopeResolver (..),
@@ -31,7 +35,7 @@ data ScopeContext = ScopeContext
   }
   deriving (Show)
 
-type ScopeResolver a = StateT ScopeContext Identity a
+type ScopeResolver a = StateT ScopeContext IO a
 
 runScopeResolver :: s -> State s a -> (a, s)
 runScopeResolver context resolver = runState resolver context

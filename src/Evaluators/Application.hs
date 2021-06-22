@@ -4,7 +4,7 @@
 
 module Evaluators.Application (eval) where
 
-import Ast (LispVal (Atom, Bool, Lambda, List, Number, PrimitiveFunction, args, body, name, targetScopeId, varargs))
+import Ast (LispVal (Atom, Bool, IOFunction, Lambda, List, Number, PrimitiveFunction, args, body, name, targetScopeId, varargs))
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader (local), ask, asks)
 import Control.Monad.State (evalState, get, gets, put)
@@ -24,6 +24,7 @@ eval expr@(List (head : args)) evaluate = do
   case funcToApply of
     lambda@Lambda {} -> applyLambda lambda args evaluate
     primitive@PrimitiveFunction {} -> applyPrimitive primitive args evaluate
+    io@IOFunction {} -> return io
     _ -> throwError (BadSpecialForm "invalid application expression: " expr)
 
 applyPrimitive :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
@@ -37,7 +38,7 @@ applyPrimitive PrimitiveFunction {name} args evaluate = do
 applyLambda :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate = do
   if length args /= length argExprs && isNothing varargs
-    then throwError (NumArgs (length args) argExprs)
+    then throwError (Default ("lambda failed " ++ show lambda))
     else do
       argsValues <- mapM evaluate argExprs
       callerScope <- currentScope

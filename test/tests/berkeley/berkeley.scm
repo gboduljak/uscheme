@@ -85,7 +85,7 @@
 ; expect 4
 
 (begin (display 1) (+ 1 1))
-; expect 12
+; expect 2
 
 (begin 9 'nine)
 ; expect nine
@@ -678,16 +678,16 @@ one-through-four
 (and 1 2 3)
 ; expect 3
 
-(and False (/ 1 0))
+(and false (/ 1 0))
 ; expect False
 
-(and True (/ 1 0))
+(and true (/ 1 0))
 ; expect Error
 
 (or 3 (/ 1 0))
 ; expect 3
 
-(or False (/ 1 0))
+(or false (/ 1 0))
 ; expect Error
 
 (or (quote hello) (quote world))

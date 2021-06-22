@@ -14,7 +14,9 @@ data LispVal
   | Number Double
   | String String
   | Bool Bool
+  | Nil
   | PrimitiveFunction {name :: String}
+  | IOFunction {name :: String}
   | Lambda
       { args :: [String],
         body :: [LispVal],
@@ -30,9 +32,11 @@ instance Show LispVal where
   show (List xs) = "(" ++ unwords (map show xs) ++ ")"
   show (Vector xs) = "#(" ++ unwords (map show xs) ++ ")"
   show Lambda {args, body, targetScopeId} = "lambda(" ++ unwords args ++ ")"
+  show IOFunction {name} = []
   show PrimitiveFunction {name} = "primitive " ++ show name
   show (Atom x) = x
   show (Number x) = show x
   show (String x) = "\"" ++ x ++ "\""
   show (Bool True) = "#t"
   show (Bool False) = "#f"
+  show Nil = "'()"

@@ -12,13 +12,15 @@ module EvalMonad
     EvalMonad.switchToScope,
     EvalMonad.currentScope,
     EvalMonad.updateInOwningScope,
+    EvalMonad.display,
   )
 where
 
 import Ast (LispVal (..))
-import Control.Monad.Except (ExceptT, MonadError)
+import Control.Monad.Except (ExceptT, MonadError, MonadIO (liftIO))
+import Control.Monad.Identity
 import Control.Monad.Reader (Reader)
-import Control.Monad.State (MonadTrans (lift), State)
+import Control.Monad.State (MonadState (put), MonadTrans (lift), State, StateT (StateT))
 import Data.Map hiding (lookup)
 import LispError (LispError (..))
 import Scoping.Scope (Binding, Scope, ScopeId)
@@ -37,7 +39,10 @@ import qualified Scoping.ScopeResolver as ScopeResolver
   )
 import Prelude hiding (lookup)
 
-type EvalMonad a = ExceptT LispError (State ScopeContext) a
+type EvalMonad a = ExceptT LispError (StateT ScopeContext IO) a
+
+display :: String -> EvalMonad ()
+display = liftIO . liftIO . putStr
 
 lookup :: String -> EvalMonad (Maybe LispVal)
 lookup = lift . ScopeResolver.lookup

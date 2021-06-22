@@ -1,8 +1,9 @@
 module ScopingSpec (scopingSpec) where
 
 import Ast (LispVal (..))
-import Control.Monad.State (Monad (return), gets, runState)
+import Control.Monad.State (Monad (return), StateT (runStateT), gets, runState)
 import qualified Data.Map as Map (size)
+import GHC.IO
 import Helpers (fails)
 import Parser (expr)
 import Scoping.Scope (Scope (..), ScopeId)
@@ -62,14 +63,14 @@ scopingSpec :: Spec
 scopingSpec = do
   describe "lexical scoping resolution tests..." $ do
     it "should enter from root" $ do
-      let (result, state) = runState enterFromRoot getInitialScopeContext
+      let (result, state) = unsafePerformIO $ runStateT enterFromRoot getInitialScopeContext
        in result `shouldBe` True
     it "should resolve closest" $ do
-      let (result, state) = runState resolveClosest getInitialScopeContext
+      let (result, state) = unsafePerformIO $ runStateT resolveClosest getInitialScopeContext
        in result `shouldBe` [Just (Number 3), Just (Number 3), Just (Number 2), Just (Number 1)]
     it "should resolve deep" $ do
-      let (result, state) = runState resolveDeep getInitialScopeContext
+      let (result, state) = unsafePerformIO $ runStateT resolveDeep getInitialScopeContext
        in result `shouldBe` (Just (Number 1), 6)
     it "should resolve deep2" $ do
-      let (result, state) = runState resolveDeep2 getInitialScopeContext
+      let (result, state) = unsafePerformIO $ runStateT resolveDeep2 getInitialScopeContext
        in result `shouldBe` (Nothing, 6)
