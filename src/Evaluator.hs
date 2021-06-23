@@ -69,6 +69,7 @@ eval (List [Atom "display", val]) = do
   return (IOFunction "display")
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
+eval expr@(Atom "apply") = Apply.eval expr eval
 eval expr@(List [Atom "apply", func, List [Atom "quote", List args]]) = Apply.eval expr eval
 eval (List [Atom "if", pred, conseq, alt]) = do
   evaledPred <- eval pred

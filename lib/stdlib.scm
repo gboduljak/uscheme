@@ -61,7 +61,6 @@
 (define (min x . num-list) (fold (lambda (y z) (if (< y z) y z)) x num-list))
 (define (list . objs)       objs)
 (define (length lst)        (fold (lambda (x y) (+ x 1)) 0 lst))
-(define (append lst . lsts) (foldr (flip (curry foldr cons)) lst lsts))
 (define (reverse lst)       (fold (flip cons) '() lst))
 (define (mem-helper pred op) (lambda (acc next) (if (and (not acc) (pred (op next))) next acc)))
 (define (memq obj lst)       (fold (mem-helper (curry eq? obj) id) #f lst))

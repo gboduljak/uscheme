@@ -86,6 +86,7 @@ test-suite uscheme-test
       ArithmeticWithIterationSpec
       BookSpec
       Helpers
+      ListsOpsSpec
       MixedSpec
       RecursionSpec
       ScopingSpec

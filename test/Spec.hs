@@ -1,6 +1,7 @@
 import ArithmeticSpec (arithmeticSpec)
 import ArithmeticWithIterationSpec (arithmeticWithIterSpec)
 import BookSpec (bookEvaluationSpec, bookParsingSpec)
+import ListsOpsSpec (listsOpsSpec)
 import MixedSpec (mixedSpec)
 import RecursionSpec (recursionSpec)
 import ScopingSpec (scopingSpec)
@@ -16,4 +17,5 @@ main = do
   hspec arithmeticSpec
   hspec arithmeticWithIterSpec
   hspec mixedSpec
+  hspec listsOpsSpec
   hspec recursionSpec

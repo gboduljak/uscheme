@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Evaluators.Primitives.ListPrimitives (listPrimitives) where
 
 import Ast (LispVal (Bool, DottedList, List))
@@ -15,6 +17,7 @@ listPrimitives =
     ("car", car),
     ("cdr", cdr),
     ("cons", cons),
+    ("append", Evaluators.Primitives.ListPrimitives.append),
     ("reverse", Evaluators.Primitives.ListPrimitives.reverse)
   ]
 
@@ -46,6 +49,14 @@ cons [x, List xs] = return (List (x : xs))
 cons [x, DottedList ys y] = return (DottedList (x : ys) y)
 cons [x1, x2] = return (DottedList [x1] x2)
 cons args = throwError $ NumArgs 2 args
+
+append :: [LispVal] -> EvalMonad LispVal
+append xs = do
+  xs' <- mapM extractList xs
+  return (List (concat xs'))
+  where
+    extractList (List xs) = return xs
+    extractList expr = throwError $ TypeMismatch "pair" expr
 
 reverse :: [LispVal] -> EvalMonad LispVal
 reverse [x] = case x of
