@@ -7,6 +7,7 @@ module Evaluator
     evaluate,
     evaluateMany,
     evaluateManyParallel,
+    evaluateManySeq,
   )
 where
 
@@ -49,6 +50,11 @@ evaluateMany exprs initCtx =
 
 evaluateManyParallel :: [LispVal] -> ScopeContext -> [(Either LispError LispVal, ScopeContext)]
 evaluateManyParallel exprs initCtx = map (`evaluate` initCtx) exprs
+
+evaluateManySeq :: [LispVal] -> ScopeContext -> [(Either LispError LispVal, ScopeContext)]
+evaluateManySeq (exp : exps) ctx = foldl eval [evaluate exp ctx] exps
+  where
+    eval results expr = results ++ [evaluate expr (snd $ last results)]
 
 evaluate :: LispVal -> ScopeContext -> (Either LispError LispVal, ScopeContext)
 evaluate expr ctx = unsafePerformIO $ runStateT (runExceptT (eval expr)) ctx

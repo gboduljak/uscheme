@@ -38,8 +38,8 @@ primitives =
         ("<=", liftLogicalBinOp unpackNum (<=)),
         (">=", liftLogicalBinOp unpackNum (>=)),
         ("/=", liftLogicalBinOp unpackNum (/=)),
-        ("&&", liftLogicalBinOp unpackBool (&&)),
-        ("||", liftLogicalBinOp unpackBool (||)),
+        ("&&", logicalAnd),
+        ("||", logicalOr),
         ("eqv?", eqv),
         ("eq?", eqv),
         ("equal?", eqv)
@@ -71,6 +71,31 @@ remainder x y = int2Double $ Prelude.rem (round x) (round y)
 
 lookup :: String -> Maybe PrimitiveCallable
 lookup name = Map.lookup name primitives
+
+logicalOr :: [LispVal] -> EvalMonad LispVal
+logicalOr [x, y] = do
+  x' <- asBool x
+  y' <- asBool y
+  if x'
+    then return x
+    else
+      if y'
+        then return y
+        else return (Bool False)
+logicalOr expr = throwError (NumArgs 2 expr)
+
+logicalAnd :: [LispVal] -> EvalMonad LispVal
+logicalAnd [x, y] = do
+  x' <- asBool x
+  y' <- asBool y
+  if not x' || not y'
+    then return (Bool False)
+    else return y
+logicalAnd expr = throwError (NumArgs 2 expr)
+
+asBool :: LispVal -> EvalMonad Bool
+asBool (Bool x) = return x
+asBool _ = return True
 
 isSymbol :: LispVal -> LispVal
 isSymbol (Atom _) = Bool True
