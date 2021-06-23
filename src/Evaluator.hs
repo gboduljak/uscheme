@@ -110,12 +110,12 @@ eval expr = throwError (BadSpecialForm "unrecognized special form" expr)
 
 cond :: [LispVal] -> EvalMonad LispVal
 cond [List [Atom "else", value]] = eval value
-cond ((List [condition, value]) : alts) = do
+cond ((List (condition : valueExprs) : alts)) = do
   condPred <- eval condition
   case condPred of
-    (Bool True) -> eval value
+    (Bool True) -> last <$> mapM eval valueExprs
     (Bool False) -> cond alts
-    _ -> throwError $ Default "cond predicate evaluated to a non bool value."
+    _ -> throwError $ Default "cond predicate evaluated to a non bool value"
 cond ((List a) : _) = throwError $ NumArgs 2 a
 cond (a : _) = throwError $ NumArgs 2 [a]
-cond _ = throwError $ Default "not viable alternative in cond"
+cond _ = throwError $ Default "no viable alternative in cond"
