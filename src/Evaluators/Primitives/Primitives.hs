@@ -15,7 +15,7 @@ import Evaluators.Toolkits.ExpToolkit
     unpackNum,
   )
 import GHC.Float (int2Double)
-import LispError (LispError (NumArgs))
+import LispError (LispError (DivideByZero, NumArgs))
 
 type PrimitiveCallable = [LispVal] -> EvalMonad LispVal
 
@@ -25,7 +25,7 @@ primitives =
     ( [ ("-", minus),
         ("+", liftNumericBinOp (+)),
         ("*", liftNumericBinOp (*)),
-        ("/", liftNumericBinOp (/)),
+        ("/", divide),
         ("mod", liftNumericBinOp modulo),
         ("quotient", liftNumericBinOp quotient),
         ("remainder", liftNumericBinOp remainder),
@@ -53,6 +53,12 @@ minus [x] = do
   x' <- unpackNum x
   return (Number (- x'))
 minus xs = liftNumericBinOp (-) xs
+
+divide :: [LispVal] -> EvalMonad LispVal
+divide xs = do
+  if Number 0 `notElem` xs
+    then liftNumericBinOp (/) xs
+    else throwError (DivideByZero (List xs))
 
 modulo :: Double -> Double -> Double
 modulo x y = int2Double $ Prelude.mod (round x) (round y)
