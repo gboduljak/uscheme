@@ -29,6 +29,7 @@ library
       EvalMonad
       Evaluator
       Evaluators.Application
+      Evaluators.Apply
       Evaluators.Atom
       Evaluators.Define
       Evaluators.Lambda

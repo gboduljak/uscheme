@@ -21,6 +21,7 @@ import qualified Data.List as List (reverse)
 import qualified Data.Map as Map (Map, empty, fromList, insert, lookup, map)
 import EvalMonad (EvalMonad (..), display)
 import qualified Evaluators.Application as Application (eval)
+import qualified Evaluators.Apply as Apply
 import qualified Evaluators.Atom as Atom (eval)
 import qualified Evaluators.Define as Define (eval)
 import qualified Evaluators.Lambda as Lambda (eval)
@@ -56,26 +57,18 @@ evaluateOnEmptyContext :: LispVal -> (Either LispError LispVal, ScopeContext)
 evaluateOnEmptyContext expr = evaluate expr getInitialScopeContext
 
 eval :: LispVal -> EvalMonad LispVal
-eval (List []) = return Nil
-eval Nil = return Nil
-eval val@(String _) = return val
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
-eval expr@(Atom "nil") = return (List [])
-eval expr@(Atom "newline") = return (IOFunction "display")
-eval expr@(Atom name) = Atom.eval expr
 eval (List [Atom "display", val]) = do
   x <- eval val
   display (show x)
   return (IOFunction "display")
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
+eval expr@(List [Atom "apply", func, List [Atom "quote", List args]]) = Apply.eval expr eval
 eval (List [Atom "if", pred, conseq, alt]) = do
   evaledPred <- eval pred
   case evaledPred of
     (Bool False) -> eval alt
-    (Bool True) -> eval conseq
-    _ -> throwError (TypeMismatch "bool" evaledPred)
+    _ -> eval conseq
 eval (List (Atom "begin" : rest)) = last <$> mapM eval rest
 eval expr@(List [Atom "let", List pairs, body]) = Let.eval expr eval
 eval expr@(List [Atom "define", DottedList args arg, funcBody]) = Define.eval expr eval
@@ -106,6 +99,14 @@ eval expr@(List (Atom "case" : key : clauses)) = do
           else return eval expr (List (Atom "case" : key : tail clauses))
       _ -> throwError $ BadSpecialForm "ill-formed case expression: " expr
 eval expr@(List (head : args)) = Application.eval expr eval
+eval (List []) = return Nil
+eval Nil = return Nil
+eval val@(String _) = return val
+eval val@(Number _) = return val
+eval val@(Bool _) = return val
+eval expr@(Atom "nil") = return (List [])
+eval expr@(Atom "newline") = return (IOFunction "display")
+eval expr@(Atom name) = Atom.eval expr
 eval expr = throwError (BadSpecialForm "unrecognized special form" expr)
 
 cond :: [LispVal] -> EvalMonad LispVal
@@ -114,8 +115,7 @@ cond ((List (condition : valueExprs) : alts)) = do
   condPred <- eval condition
   case condPred of
     (Bool True) -> last <$> mapM eval valueExprs
-    (Bool False) -> cond alts
-    _ -> throwError $ Default "cond predicate evaluated to a non bool value"
+    _ -> cond alts
 cond ((List a) : _) = throwError $ NumArgs 2 a
 cond (a : _) = throwError $ NumArgs 2 [a]
 cond _ = throwError $ Default "no viable alternative in cond"

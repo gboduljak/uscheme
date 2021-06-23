@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Evaluators.Application (eval) where
+module Evaluators.Application (eval, applyLambda, applyPrimitive) where
 
 import Ast (LispVal (Atom, Bool, IOFunction, Lambda, List, Number, PrimitiveFunction, args, body, name, targetScopeId, varargs))
 import Control.Monad.Except (MonadError (throwError))
@@ -38,7 +38,7 @@ applyPrimitive PrimitiveFunction {name} args evaluate = do
 applyLambda :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate = do
   if length args /= length argExprs && isNothing varargs
-    then throwError (Default ("lambda failed " ++ show lambda))
+    then throwError (NumArgs (length args) argExprs)
     else do
       argsValues <- mapM evaluate argExprs
       callerScope <- currentScope
