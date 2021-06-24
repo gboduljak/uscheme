@@ -1,4 +1,4 @@
-module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primitives.lookup, PrimitiveCallable) where
+module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primitives.lookup, asBool) where
 
 import Ast (LispVal (Atom, Bool, DottedList, List, Number, String, args), PrimitiveFunctionKind (Binary, Unary))
 import Control.Monad.Except (throwError)

@@ -699,7 +699,7 @@ one-through-four
 (if 0 1 2)
 ; expect 1
 
-(if (or false False #f) 1 2)
+(if (or false false #f) 1 2)
 ; expect 2
 
 (define (loop) (loop))

@@ -28,7 +28,7 @@ import qualified Evaluators.Define as Define (eval)
 import qualified Evaluators.Lambda as Lambda (eval)
 import qualified Evaluators.Let as Let (eval)
 import Evaluators.Primitives.EquivalencePrimitives (eqv)
-import Evaluators.Primitives.Primitives (primitives)
+import Evaluators.Primitives.Primitives (asBool, primitives)
 import qualified Evaluators.Set as Set
 import GHC.IO hiding (evaluate)
 import LispError (LispError (..))
@@ -120,9 +120,13 @@ cond :: [LispVal] -> EvalMonad LispVal
 cond [List [Atom "else", value]] = eval value
 cond ((List (condition : valueExprs) : alts)) = do
   condPred <- eval condition
-  case condPred of
-    (Bool True) -> last <$> mapM eval valueExprs
-    _ -> cond alts
+  passes <- asBool condPred
+  if passes
+    then
+      if not (null valueExprs)
+        then last <$> mapM eval valueExprs
+        else return condPred
+    else cond alts
 cond ((List a) : _) = throwError $ NumArgs 2 a
 cond (a : _) = throwError $ NumArgs 2 [a]
 cond _ = throwError $ Default "no viable alternative in cond"
