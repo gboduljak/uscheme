@@ -63,7 +63,7 @@ comment = singleLine <|> multiLine
       return ()
     multiLine = do
       try (Parsec.string "#|")
-      manyTill (multiLine <|> void anyChar) (Parsec.string "|#")
+      manyTill (multiLine <|> void anyChar) (try (Parsec.string "|#"))
       return ()
 
 lexeme :: Parser a -> Parser a
