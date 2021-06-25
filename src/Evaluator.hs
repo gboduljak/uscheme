@@ -28,6 +28,7 @@ import qualified Evaluators.Define as Define (eval)
 import qualified Evaluators.Lambda as Lambda (eval)
 import qualified Evaluators.Let as Let (eval)
 import Evaluators.Primitives.EquivalencePrimitives (eqv)
+import qualified Evaluators.Primitives.IOPrimitives as IOPrimitives (load)
 import Evaluators.Primitives.Primitives (asBool, primitives)
 import qualified Evaluators.Set as Set
 import GHC.IO hiding (evaluate)
@@ -67,6 +68,7 @@ eval (List [Atom "display", val]) = do
   x <- eval val
   display (show x)
   return (IOFunction "display")
+eval expr@(List [Atom "load", path]) = IOPrimitives.load expr eval
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "unquote", val]) = eval val
 eval expr@(Atom "apply") = Apply.eval expr eval

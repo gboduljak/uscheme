@@ -13,6 +13,7 @@ module EvalMonad
     EvalMonad.currentScope,
     EvalMonad.updateInOwningScope,
     EvalMonad.display,
+    EvalMonad.load,
   )
 where
 
@@ -43,6 +44,9 @@ type EvalMonad a = ExceptT LispError (StateT ScopeContext IO) a
 
 display :: String -> EvalMonad ()
 display = liftIO . liftIO . putStr
+
+load :: String -> EvalMonad String
+load = liftIO . liftIO . readFile
 
 lookup :: String -> EvalMonad (Maybe LispVal)
 lookup = lift . ScopeResolver.lookup
