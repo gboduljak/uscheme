@@ -88,6 +88,7 @@ test-suite uscheme-test
       Helpers
       ListsOpsSpec
       MixedSpec
+      PeterNorvigSpec
       RecursionSpec
       ScopingSpec
       Toys

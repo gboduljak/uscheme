@@ -12,43 +12,52 @@ import Data.Foldable (traverse_)
 import Data.Functor (($>))
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
-import EvalMonad (EvalMonad, currentScope, deleteScope, enterScope, exitScope, extendScope, switchToScope)
-import Evaluators.Primitives.Primitives (lookup, primitives)
+import EvalMonad (EvalMonad, currentScope, deleteScope, display, enterScope, exitScope, extendScope, switchToScope)
+import Evaluators.Primitives.Primitives (and, lookup, or, primitives)
 import LispError (LispError (BadSpecialForm, Default, NotFunction, NumArgs))
 import Scoping.Scope (Scope (parentId), id)
-import Prelude hiding (id, lookup)
+import Prelude hiding (and, id, lookup, or)
 
 eval :: LispVal -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
-eval expr@(List (head : args)) evaluate = do
-  funcToApply <- evaluate head
-  case funcToApply of
-    lambda@Lambda {} -> applyLambda lambda args evaluate
-    primitive@PrimitiveFunction {} -> applyPrimitive primitive args evaluate
-    io@IOFunction {} -> return io
-    _ -> throwError (BadSpecialForm "invalid application expression: " expr)
+eval expr@(List (func : args)) evaluate = do
+  if func `elem` [Atom "and", Atom "or"]
+    then do applyAndOr func args evaluate
+    else do
+      funcToApply <- evaluate func
+      case funcToApply of
+        lambda@Lambda {} -> do
+          evaledArgs <- mapM evaluate args
+          applyLambda lambda evaledArgs evaluate
+        primitive@PrimitiveFunction {} -> do
+          evaledArgs <- mapM evaluate args
+          applyPrimitive primitive evaledArgs
+        io@IOFunction {} -> return io
+        _ -> throwError (BadSpecialForm "invalid application expression: " expr)
 
-applyPrimitive :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
-applyPrimitive PrimitiveFunction {name} args evaluate = do
+applyAndOr :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
+applyAndOr (Atom "and") args eval = and args eval
+applyAndOr (Atom "or") args eval = or args eval
+applyAndOr func _ _ = throwError (BadSpecialForm "invalid application of and/or" func)
+
+applyPrimitive :: LispVal -> [LispVal] -> EvalMonad LispVal
+applyPrimitive PrimitiveFunction {name} evaledArgs = do
   case lookup name of
-    (Just funcBody) -> do
-      evaledArgs <- mapM evaluate args
-      funcBody evaledArgs
+    (Just funcBody) -> do funcBody evaledArgs
     Nothing -> throwError (NotFunction "unrecognised primitive function: " name)
 
 applyLambda :: LispVal -> [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
-applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate = do
-  if length args /= length argExprs && isNothing varargs
-    then throwError (NumArgs (length args) argExprs)
+applyLambda lambda@Lambda {args, body, varargs, targetScopeId} evaledArgs evaluate = do
+  if length args /= length evaledArgs && isNothing varargs
+    then throwError (NumArgs (length args) evaledArgs)
     else do
-      argsValues <- mapM evaluate argExprs
       callerScope <- currentScope
       switchToScope targetScopeId
 
       enterScope
       lambdaScope <- currentScope
-      bindArgs (zip args argsValues)
-      bindVarArgs argsValues
-      lambdaRetVal <- evaluateBodies body
+      bindArgs (zip args evaledArgs)
+      bindVarArgs evaledArgs
+      lambdaRetVal <- evalBodies body
       exitScope
 
       switchToScope (id callerScope)
@@ -56,10 +65,6 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
 
       return lambdaRetVal
   where
-    evaluateBodies :: [LispVal] -> EvalMonad LispVal
-    evaluateBodies [x] = evaluate x
-    evaluateBodies (x : xs) = evaluate x >> evaluateBodies xs
-
     bindArgs = traverse_ extendScope
     bindVarArgs argsValues = case varargs of
       (Just varArgBindName) -> do
@@ -68,3 +73,5 @@ applyLambda lambda@Lambda {args, body, varargs, targetScopeId} argExprs evaluate
       Nothing -> do currentScope
       where
         varArgsToBind allArgs = return (drop (length args) allArgs)
+    evalBodies [x] = evaluate x
+    evalBodies (x : xs) = evaluate x >> evalBodies xs

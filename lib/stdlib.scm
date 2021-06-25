@@ -75,7 +75,5 @@
 
 (define (sum . lst)         (fold + 0 lst))
 (define (product . lst)     (fold * 1 lst))
-(define (and . lst)         (fold && #t lst))
-(define (or . lst)          (fold || #f lst))
 (define (any? pred . lst)   (apply or (map pred lst)))
 (define (every? pred . lst) (apply and (map pred lst)))

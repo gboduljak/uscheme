@@ -4,7 +4,7 @@ import Ast (LispVal (..))
 import Control.Monad.State (Monad (return), MonadIO (liftIO), MonadTrans (lift), gets, runState)
 import Data.Either
 import qualified Data.Map as Map (size)
-import Evaluator (evaluate, evaluateMany, evaluateManyParallel)
+import Evaluator (evaluate, evaluateMany, evaluateManyParallel, evaluateManySeq)
 import Helpers (fails)
 import LispError (LispError (..))
 import Parser (expr, parse)
@@ -67,4 +67,29 @@ recursionSpec = do
                          Right (Number 4),
                          Right (Number 61)
                        ]
+        (Left error) -> expectationFailure (show error)
+    it "recursively evaluates sum" $ do
+      stdLib <- liftIO (readFile "./lib/stdlib.scm")
+      input <- liftIO (readFile "./test/tests/recursions/sum.scm")
+      let emptyCtx = getInitialScopeContext
+      case parse stdLib of
+        (Right stdlibExps) -> do
+          case evaluateMany stdlibExps emptyCtx of
+            (Right _, testCtx) -> do
+              case parse input of
+                (Right tree) -> do
+                  let results = map fst $ evaluateManySeq tree testCtx
+                  results
+                    `shouldBe` [ Right
+                                   ( Lambda
+                                       { args = ["n", "total"],
+                                         body = [List [Atom "if", List [Atom "zero?", Atom "n"], Atom "total", List [Atom "sum", List [Atom "-", Atom "n", Number 1.0], List [Atom "+", Atom "n", Atom "total"]]]],
+                                         targetScopeId = 0,
+                                         varargs = Nothing
+                                       }
+                                   ),
+                                 Right (Number 501501.0)
+                               ]
+                (Left error) -> expectationFailure (show error)
+            (Left error, _) -> expectationFailure (show error)
         (Left error) -> expectationFailure (show error)

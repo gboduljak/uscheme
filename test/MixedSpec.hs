@@ -19,7 +19,7 @@ import Prelude hiding (id, lookup)
 mixedSpec :: Spec
 mixedSpec = do
   describe "mixed language features tests..." $ do
-    it "correctly evaluates a sequence of mixed language ops" $ do
+    it "correctly evaluates the first sequence of mixed language ops" $ do
       stdLib <- liftIO (readFile "./lib/stdlib.scm")
       input <- liftIO (readFile "./test/tests/berkeley/mixed.scm")
       let emptyCtx = getInitialScopeContext
@@ -83,6 +83,57 @@ mixedSpec = do
                                  Right (Atom "value_b"),
                                  Right (List [Number 6.0, Number 9.0]),
                                  Right (List [Atom "sun", Atom "moon"])
+                               ]
+                (Left error) -> expectationFailure (show error)
+            (Left error, _) -> expectationFailure (show error)
+    it "correctly evaluates the second sequence of mixed language ops" $ do
+      stdLib <- liftIO (readFile "./lib/stdlib.scm")
+      input <- liftIO (readFile "./test/tests/berkeley/mixed-2.scm")
+      let emptyCtx = getInitialScopeContext
+      case parse stdLib of
+        (Right stdlibExps) -> do
+          case evaluateMany stdlibExps emptyCtx of
+            (Right _, testCtx) -> do
+              case parse input of
+                (Right tree) -> do
+                  let results = map fst $ evaluateManySeq tree testCtx
+                  results
+                    `shouldBe` [ Right (Atom "square"),
+                                 Right (Number 4.0),
+                                 Right (Number 10.0),
+                                 Right (List [Number 1.0, Number 2.0, Number 3.0, Number 4.0]),
+                                 Right (Number 1.0),
+                                 Right (Number 1.0),
+                                 Right (Bool True),
+                                 Right (Bool False),
+                                 Right (Bool True),
+                                 Right (Number 1.0),
+                                 Right (Number 3.0),
+                                 Right (Bool False),
+                                 Right (Number 3.0),
+                                 Right (Atom "hello"),
+                                 Right (Number 1.0),
+                                 Right (Number 1.0),
+                                 Right (Number 2.0),
+                                 Right
+                                   ( Lambda
+                                       { args = [],
+                                         body = [List [Atom "loop"]],
+                                         targetScopeId = 0,
+                                         varargs = Nothing
+                                       }
+                                   ),
+                                 Right (Number 12.0),
+                                 Right (Number 2.0),
+                                 Right
+                                   ( Lambda
+                                       { args = ["x"],
+                                         body = [List [Atom "display", Atom "x"], List [Atom "square", Atom "x"]],
+                                         targetScopeId = 0,
+                                         varargs = Nothing
+                                       }
+                                   ),
+                                 Right (Number 144.0)
                                ]
                 (Left error) -> expectationFailure (show error)
             (Left error, _) -> expectationFailure (show error)

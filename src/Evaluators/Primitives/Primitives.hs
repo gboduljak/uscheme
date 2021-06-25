@@ -1,6 +1,6 @@
-module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primitives.lookup, asBool) where
+module Evaluators.Primitives.Primitives (primitives, Evaluators.Primitives.Primitives.lookup, asBool, and, or) where
 
-import Ast (LispVal (Atom, Bool, DottedList, List, Number, String, args), PrimitiveFunctionKind (Binary, Unary))
+import Ast (LispVal (Atom, Bool, DottedList, List, Number, String, args))
 import Control.Monad.Except (throwError)
 import qualified Data.Map as Map
 import EvalMonad
@@ -16,6 +16,7 @@ import Evaluators.Toolkits.ExpToolkit
   )
 import GHC.Float (int2Double)
 import LispError (LispError (DivideByZero, NumArgs))
+import Prelude hiding (and, or)
 
 type PrimitiveCallable = [LispVal] -> EvalMonad LispVal
 
@@ -38,8 +39,8 @@ primitives =
         ("<=", liftLogicalBinOp unpackNum (<=)),
         (">=", liftLogicalBinOp unpackNum (>=)),
         ("/=", liftLogicalBinOp unpackNum (/=)),
-        ("&&", logicalAnd),
-        ("||", logicalOr),
+        ("&&", logicalAndOp),
+        ("||", logicalOrOp),
         ("eqv?", eqv),
         ("eq?", eqv),
         ("equal?", eqv)
@@ -72,26 +73,59 @@ remainder x y = int2Double $ Prelude.rem (round x) (round y)
 lookup :: String -> Maybe PrimitiveCallable
 lookup name = Map.lookup name primitives
 
-logicalOr :: [LispVal] -> EvalMonad LispVal
-logicalOr [x, y] = do
+logicalOrOp :: [LispVal] -> EvalMonad LispVal
+logicalOrOp [x, y] = do
   x' <- asBool x
-  y' <- asBool y
   if x'
     then return x
-    else
+    else do
+      y' <- asBool y
       if y'
         then return y
         else return (Bool False)
-logicalOr expr = throwError (NumArgs 2 expr)
+logicalOrOp expr = throwError (NumArgs 2 expr)
 
-logicalAnd :: [LispVal] -> EvalMonad LispVal
-logicalAnd [x, y] = do
+logicalAndOp :: [LispVal] -> EvalMonad LispVal
+logicalAndOp [x, y] = do
   x' <- asBool x
-  y' <- asBool y
-  if not x' || not y'
+  if not x'
     then return (Bool False)
-    else return y
-logicalAnd expr = throwError (NumArgs 2 expr)
+    else do
+      y' <- asBool y
+      if y'
+        then return y
+        else return (Bool False)
+logicalAndOp expr = throwError (NumArgs 2 expr)
+
+and :: [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
+and [] _ = return (Bool True)
+and [x] eval = do
+  x' <- eval x
+  x'' <- asBool x'
+  if x''
+    then return x'
+    else return (Bool False)
+and (x : xs) eval = do
+  x' <- eval x
+  x'' <- asBool x'
+  if x''
+    then and xs eval
+    else return x'
+
+or :: [LispVal] -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
+or [] _ = return (Bool False)
+or [x] eval = do
+  x' <- eval x
+  x'' <- asBool x'
+  if x''
+    then return x'
+    else return (Bool False)
+or (x : xs) eval = do
+  x' <- eval x
+  x'' <- asBool x'
+  if x''
+    then return x'
+    else or xs eval
 
 asBool :: LispVal -> EvalMonad Bool
 asBool (Bool x) = return x

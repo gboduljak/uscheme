@@ -3,6 +3,7 @@ import ArithmeticWithIterationSpec (arithmeticWithIterSpec)
 import BookSpec (bookEvaluationSpec, bookParsingSpec)
 import ListsOpsSpec (listsOpsSpec)
 import MixedSpec (mixedSpec)
+import PeterNorvigSpec (peterNorvigSpec)
 import RecursionSpec (recursionSpec)
 import ScopingSpec (scopingSpec)
 import Test.Hspec (hspec)
@@ -18,4 +19,5 @@ main = do
   hspec arithmeticWithIterSpec
   hspec mixedSpec
   hspec listsOpsSpec
+  hspec peterNorvigSpec
   hspec recursionSpec

@@ -261,7 +261,11 @@ listsOpsSpec = do
                                          body =
                                            [ List
                                                [ Atom "map",
-                                                 List [Atom "lambda", List [Atom "x"], List [Atom "*", Atom "x", Atom "factor"]],
+                                                 List
+                                                   [ Atom "lambda",
+                                                     List [Atom "x"],
+                                                     List [Atom "*", Atom "x", Atom "factor"]
+                                                   ],
                                                  Atom "items"
                                                ]
                                            ],
@@ -328,7 +332,14 @@ listsOpsSpec = do
                                                            ]
                                                        ]
                                                    ],
-                                                 List [Atom "else", List [Atom "filter", Atom "predicate", List [Atom "cdr", Atom "sequence"]]]
+                                                 List
+                                                   [ Atom "else",
+                                                     List
+                                                       [ Atom "filter",
+                                                         Atom "predicate",
+                                                         List [Atom "cdr", Atom "sequence"]
+                                                       ]
+                                                   ]
                                                ]
                                            ],
                                          targetScopeId = 0,
@@ -371,7 +382,15 @@ listsOpsSpec = do
                                                [ Atom "if",
                                                  List [Atom ">", Atom "low", Atom "high"],
                                                  Atom "nil",
-                                                 List [Atom "cons", Atom "low", List [Atom "enumerate-interval", List [Atom "+", Atom "low", Number 1.0], Atom "high"]]
+                                                 List
+                                                   [ Atom "cons",
+                                                     Atom "low",
+                                                     List
+                                                       [ Atom "enumerate-interval",
+                                                         List [Atom "+", Atom "low", Number 1.0],
+                                                         Atom "high"
+                                                       ]
+                                                   ]
                                                ]
                                            ],
                                          targetScopeId = 0,
@@ -386,7 +405,16 @@ listsOpsSpec = do
                                            [ List
                                                [ Atom "cond",
                                                  List [List [Atom "null?", Atom "tree"], Atom "nil"],
-                                                 List [List [Atom "not", List [Atom "pair?", Atom "tree"]], List [Atom "list", Atom "tree"]],
+                                                 List
+                                                   [ List
+                                                       [ Atom "not",
+                                                         List [Atom "pair?", Atom "tree"]
+                                                       ],
+                                                     List
+                                                       [ Atom "list",
+                                                         Atom "tree"
+                                                       ]
+                                                   ],
                                                  List
                                                    [ Atom "else",
                                                      List
@@ -401,7 +429,23 @@ listsOpsSpec = do
                                          varargs = Nothing
                                        }
                                    ),
-                                 Right (List [Number 1.0, Number 2.0, Number 3.0, Number 4.0, Number 5.0])
+                                 Right (List [Number 1.0, Number 2.0, Number 3.0, Number 4.0, Number 5.0]),
+                                 Right
+                                   ( Lambda
+                                       { args = ["s"],
+                                         body =
+                                           [ List
+                                               [ Atom "if",
+                                                 List [Atom "eq?", Atom "s", List [Atom "quote", List []]],
+                                                 Number 0.0,
+                                                 List [Atom "+", Number 1.0, List [Atom "len", List [Atom "cdr", Atom "s"]]]
+                                               ]
+                                           ],
+                                         targetScopeId = 0,
+                                         varargs = Nothing
+                                       }
+                                   ),
+                                 Right (Number 4.0)
                                ]
                 (Left error) -> expectationFailure (show error)
             (Left error, _) -> expectationFailure (show error)

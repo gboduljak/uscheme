@@ -21,7 +21,7 @@ eval :: LispVal -> (LispVal -> EvalMonad LispVal) -> EvalMonad LispVal
 eval (List [Atom "apply", func, List [Atom "quote", List args]]) evaluate = do
   funcToApply <- evaluate func
   case funcToApply of
-    primitive@PrimitiveFunction {name} -> Application.applyPrimitive primitive args evaluate
+    primitive@PrimitiveFunction {name} -> Application.applyPrimitive primitive args
     lambda@Lambda {} -> Application.applyLambda lambda args evaluate
     _ -> evaluate (List (funcToApply : args))
 eval expr evaluate = throwError $ BadSpecialForm "ill-formed apply expression: " expr
