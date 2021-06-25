@@ -1,8 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 
 module Parser
-  ( spaces,
-    string,
+  ( string,
     atom,
     expr,
     list,
@@ -19,13 +18,13 @@ import Lexer
     closeParens,
     comma,
     dot,
+    junk,
     nil,
     number,
     openParens,
     openVec,
     quasiquote,
     quote,
-    spaces,
     string,
   )
 import Numeric
@@ -34,7 +33,7 @@ import Text.ParserCombinators.Parsec (ParseError, Parser, many, try, (<|>))
 import qualified Text.ParserCombinators.Parsec as Parsec (parse, string)
 
 parse :: String -> Either ParseError [LispVal]
-parse = Parsec.parse (spaces >> many expr) ""
+parse = Parsec.parse (junk >> many expr) ""
 
 expr :: Parser LispVal
 expr = quotedExpr <|> quasiQuotedExpr <|> commaExpr <|> ordinaryExp

@@ -1,5 +1,5 @@
 module Lexer
-  ( spaces,
+  ( junk,
     lexeme,
     dot,
     comma,
@@ -17,6 +17,8 @@ module Lexer
 where
 
 import Ast
+import Control.Monad (void)
+import qualified Control.Monad
 import Text.Parsec
   ( anyChar,
     char,
@@ -34,12 +36,13 @@ import Text.Parsec
     optional,
     skipMany,
     space,
+    spaces,
     try,
     (<?>),
     (<|>),
   )
 import qualified Text.Parsec as P (string)
-import Text.ParserCombinators.Parsec (Parser)
+import Text.ParserCombinators.Parsec (Parser, manyTill)
 import qualified Text.ParserCombinators.Parsec as Parsec (string)
 
 ignore :: Parser a -> Parser ()
@@ -48,8 +51,17 @@ ignore p = do p; return ()
 spaces :: Parser ()
 spaces = skipMany space
 
+junk :: Parser ()
+junk = skipMany (void space <|> singleLineComment)
+
+singleLineComment :: Parser ()
+singleLineComment = do
+  char ';'
+  manyTill anyChar (char '\n')
+  return ()
+
 lexeme :: Parser a -> Parser a
-lexeme p = do x <- p; spaces; return x
+lexeme p = do x <- p; junk; return x
 
 dot :: Parser Char
 dot = lexeme (char '.')
@@ -81,7 +93,7 @@ string =
     char '"'
     x <- many (escapedCharacter <|> simpleCharacter)
     char '"'
-    spaces
+    junk
     return (String x)
   where
     escapedCharacter = do
