@@ -52,13 +52,19 @@ spaces :: Parser ()
 spaces = skipMany space
 
 junk :: Parser ()
-junk = skipMany (void space <|> singleLineComment)
+junk = skipMany (void space <|> comment)
 
-singleLineComment :: Parser ()
-singleLineComment = do
-  char ';'
-  manyTill anyChar (char '\n')
-  return ()
+comment :: Parser ()
+comment = singleLine <|> multiLine
+  where
+    singleLine = do
+      char ';'
+      manyTill anyChar (char '\n')
+      return ()
+    multiLine = do
+      try (Parsec.string "#|")
+      manyTill (multiLine <|> void anyChar) (Parsec.string "|#")
+      return ()
 
 lexeme :: Parser a -> Parser a
 lexeme p = do x <- p; junk; return x
