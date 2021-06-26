@@ -31,17 +31,7 @@ dependencies:
 
 library:
   source-dirs: src
-  exposed-modules:
-    - Lib
-    - Parser
-    - Lexer
-    - Evaluator
-    - Ast
-    - HuskParser
-    - Scoping
-library:
-  source-dirs: src
-
+  
 executables:
   uscheme-exe:
     main:                Main.hs
