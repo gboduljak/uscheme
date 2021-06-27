@@ -144,7 +144,7 @@ data LispVal
   deriving (Eq)
 ```
 ### Lexical scoping 
-The implementation of lexical scoping is based on the scope resolver with a symbol table, which differs from the 'ad hoc' solutions using **IO monad** with IO handles or a **Reader** monad presented in the resources mentioned. The main reason for an approach of using a custom scope resolver monad and a symbol table is the separation of concerns and expressivity, which result in a more faithful and testable implementation of lexical scoping. 
+The implementation of lexical scoping is based on the scope resolver with a symbol table, which differs from the 'ad hoc' solutions using **IO monad** with IO handles or a **Reader** monad presented in the resources mentioned. The main advantages of an approach of consisting of a custom scope resolver monad and a symbol table are the separation of concerns and expressivity. This results in a more faithful and easily testable implementation of lexical scoping. 
 
 The competing solution of using **IO monad** with **IO handles** is probably more convenient, but violates separation of concerns and is not considered as a good practice. The reason for that is the fact that **IO monad** will be used to handle state operations which is something we do not necessarily want. The competing solution of using the **Reader** monad is harder to test, involves explicit copying of scopes and it is even possibly incorrect. 
 
@@ -152,7 +152,7 @@ The competing solution of using **IO monad** with **IO handles** is probably mor
 - Two main components of scoping implementation are the [Scope](src/Scoping/Scope.hs) itself and the [ScopeResolver](src/Scoping/ScopeResolver.hs) monad
 
 > Scope
-> 
+
 **Scope** is a data type used to implement a 'single level' of a global scope table. It contains the parent scope identifier and a symbol table of declarations. This symbol table contains variable bindings within the scope. It exposes **extend** and **lookup** operations which implement lookup of a value corresponding to the local name and installation of a new (variable name, value) pair, called a **Binding**.
 
 ```haskell
