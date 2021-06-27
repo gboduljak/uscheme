@@ -1,5 +1,5 @@
 # μscheme
-![](readme-resources/repl.png)
+![](readme-resources/uscheme.png)
 
 ## Intro
 
