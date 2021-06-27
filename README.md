@@ -74,7 +74,7 @@ For a better overview, all language features required to interpret the following
 
 ### Lexical and syntactic analysis
 
-Lexical and syntactix analysis is implemented using monadic parser combinators from the library [Parsec](https://hackage.haskell.org/package/parsec). 
+Lexical and syntactic analysis is implemented using monadic parser combinators from the library [Parsec](https://hackage.haskell.org/package/parsec). 
 
 Lexer is implemented in [Lexer.hs](src/Lexer.hs) and Parser is implemented in [Parser.hs](src/Parser.hs). Both of them are implemented using parser combinators. Great resources for parser combinators are :
 * G.Hutton and Erik Meijer's  [Monadic Parsing in Haskell](http://www.cs.nott.ac.uk/~pszgmh//pearl.pdf)
@@ -146,7 +146,7 @@ data LispVal
 ### Lexical scoping 
 The implementation of lexical scoping is based on the scope resolver with a symbol table, which differs from the 'ad hoc' solutions using **IO monad** with IO handles or a **Reader** monad presented in the resources mentioned. The main advantages of an approach of consisting of a custom scope resolver monad and a symbol table are the separation of concerns and expressivity. This results in a more faithful and easily testable implementation of lexical scoping. 
 
-The competing solution of using **IO monad** with **IO handles** is probably more convenient, but violates separation of concerns and is not considered as a good practice. The reason for that is the fact that **IO monad** will be used to handle state operations which is something we do not necessarily want. The competing solution of using the **Reader** monad is harder to test, involves explicit copying of scopes and it is even possibly incorrect. 
+The competing solution of using **IO monad** with **IO handles** is probably more convenient, but violates separation of concerns and is not considered a good practice. The reason for that is the fact that **IO monad** will be used to handle state operations which is something we do not necessarily want. The competing solution of using the **Reader** monad is harder to test, involves explicit copying of scopes and it is even possibly incorrect. 
 
 - Everything related to scoping is implemented in **Scoping module** located in **src/Scoping** folder.
 - Two main components of scoping implementation are the [Scope](src/Scoping/Scope.hs) itself and the [ScopeResolver](src/Scoping/ScopeResolver.hs) monad
