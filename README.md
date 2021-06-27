@@ -26,7 +26,7 @@ For more information about testing, see Tests section.
 
 For instructions to setup and run the interpreter with REPL, see Build & Run section.
 ### Partial bootstrapping
-The interpreter  comes with an implementation of a subset of Scheme standard library, written in Scheme. The implementation is taken from [Write Yourself a Scheme in 48 Hours](https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours). When the REPL is loaded, the above mentioned standard library is loaded into the shell and is ready for usage.
+The interpreter  comes with an implementation of a subset of Scheme standard library, written in Scheme. The standard library is implemented here [stdlib.scm](./lib/stdlib.scm). The implementation is taken from [Write Yourself a Scheme in 48 Hours](https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours). When the REPL is loaded, the above mentioned standard library is loaded into the shell and is ready for usage.
 
 ### A few examples
 For a better overview, all language features required to interpret the following two programs are supported.
