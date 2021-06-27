@@ -74,11 +74,11 @@ For a better overview, all language features required to interpret the following
 
 ### Lexical and syntactic analysis
 
-Lexical and syntactix analysis is implemented using monadic parser combinators from the [Parsec](app/Main.hs) library. 
+Lexical and syntactix analysis is implemented using monadic parser combinators from the library [Parsec](https://hackage.haskell.org/package/parsec). 
 
 Lexer is implemented in [Lexer.hs](src/Lexer.hs) and Parser is implemented in [Parser.hs](src/Parser.hs). Both of them are implemented using parser combinators. Great resources for parser combinators are :
-* Erik Meijer
-* Parsec documentation
+* G.Hutton and Erik Meijer's  [Monadic Parsing in Haskell](http://www.cs.nott.ac.uk/~pszgmh//pearl.pdf)
+* [Parsec](https://hackage.haskell.org/package/parsec) documentation
 
 > Example from Lexer.hs
 ```haskell
@@ -101,6 +101,7 @@ vector = do
   closeParens
   return vec
 ```
+Although parser combinator based approach for lexer and parser looks neat and does the job, automatically generated error messages may be misleading. The bigger problem is the fact parsing stops when the first error is encountered. In a more serious interpreter scenario, we want to report an error and continue parsing. However, with parser combinators, error recovery is nontrivial to implement and such a feature probably requires more sophisticated parsing method (e.g parser generator or hand coded recursive descent).
 ### Semantic analysis
 The semantic analysis is absent due to performance reasons and the nature of Scheme language.
 Scheme is dynamically typed, so typechecking essentially requires evaluation. For this reason, I have decided not to have semantic analysis, but to detect and report errors such as type mismatch, unbound variable or invalid function calls **within** the evaluation stage.
@@ -145,14 +146,14 @@ data LispVal
 ### Lexical scoping 
 The implementation of lexical scoping is based on the scope resolver with a symbol table, which differs from the 'ad hoc' solutions using **IO monad** with IO handles or a **Reader** monad presented in the resources mentioned. The main reason for an approach of using a custom scope resolver monad and a symbol table is the separation of concerns and expressivity, which result in a more faithful and testable implementation of lexical scoping. 
 
-The competing solution of using **IO monad** is probably more convenient, but violates separation of concerns and is not considered a good practice. The competing solution of using the **Reader** monad is harder to test and even possibly incorrect. 
+The competing solution of using **IO monad** with **IO handles** is probably more convenient, but violates separation of concerns and is not considered as a good practice. The reason for that is the fact that **IO monad** will be used to handle state operations which is something we do not necessarily want. The competing solution of using the **Reader** monad is harder to test, involves explicit copying of scopes and it is even possibly incorrect. 
 
 - Everything related to scoping is implemented in **Scoping module** located in **src/Scoping** folder.
 - Two main components of scoping implementation are the [Scope](src/Scoping/Scope.hs) itself and the [ScopeResolver](src/Scoping/ScopeResolver.hs) monad
 
 > Scope
-
-**Scope** is a data type used to implement a 'single level' of a symbol table. It contains the parent scope id and a symbol table of declarations within itself. It exposes **extend** and **lookup** operations which enable lookup of local variable and installation of a new (variable name, value pair), called a **Binding**.
+> 
+**Scope** is a data type used to implement a 'single level' of a global scope table. It contains the parent scope identifier and a symbol table of declarations. This symbol table contains variable bindings within the scope. It exposes **extend** and **lookup** operations which implement lookup of a value corresponding to the local name and installation of a new (variable name, value) pair, called a **Binding**.
 
 ```haskell
 data Scope = Scope
@@ -175,7 +176,7 @@ lookup Scope {symbolTable} name = Map.lookup name symbolTable
 ```
 > Scope Resolver
 
-**ScopeContext** is used to capture global scoping information, it stores all scopes and currentScopeId which is the id of currently active scope during evaluation. 
+**ScopeContext** is used to capture global scoping information, it stores all scopes and currentScopeId which is the identifier of currently active scope in evaluation. 
 
 ```haskell
 data ScopeContext = ScopeContext
@@ -183,15 +184,15 @@ data ScopeContext = ScopeContext
     currentScopeId :: ScopeId
   }
   deriving (Show)
-
 ```
-**ScopeResolver** is a state monad of **ScopeContext**. Essentially, in each 
+**ScopeResolver** is a state monad of **ScopeContext**. Essentially, **ScopeResolver** is a monad transformer of **IO monad** producing the value of generic type ```a```. In other words, **ScopeResolver a** models the computation which may perform scope operation (e.g lookup of binding, installation of binding) producing the value of type ```a```. Potentially, this computation may perform an IO operation.
+
 ``` haskell
 type ScopeResolver a = StateT ScopeContext IO a
 ```
-
+The most important operations within **ScopeResolver** monad are **extend** and **lookup**.
+The **extend** operation extends the current scope with a given binding (i.e installs the binding into the symbol table of a current scope) and **lookup** looks up the value corresponding to the variable name in the current scope or any of its ancestors.
 ```haskell
-
 extend :: Binding -> ScopeResolver Scope
 extend binding =
   do
@@ -224,10 +225,12 @@ Evaluation relies on the [EvalMonad](src/EvalMonad.hs), which is a fairly compli
 type EvalMonad a = ExceptT LispError (StateT ScopeContext IO) a
 ```
 
-Although the definition looks scary at the first glance, it basically defines the EvalMonad as a computation which may result in an error of type **LispError** holding the internal state of type **ScopeContext**. In addition to everything written before, evaluation computation may perform IO operations (e.g **display** or **load**). The computation is parameterised over any type, which results in enough flexibility to implement any evaluation use case.
+Although the definition looks scary, it basically defines the EvalMonad as a computation which may result in an error of type **LispError** holding the internal state of type **ScopeContext** (essentially a **ScopeResolver**). In addition to everything written before, evaluation computation may perform IO operations (e.g **display** or **load**). The computation is parameterised over any type, which results in enough flexibility to implement any evaluation use case.
 However, evaluation mostly results in an instance of [Ast](src/Ast.hs).
 
-Evaluation is implemented in [Evaluator](src/Evaluator.hs) which heavily relies on pattern matching over possible expression types of [Ast](src/Ast.hs). Usually, the expression type is detected in [Evaluator](src/Evaluator.hs) and the evaluation of recognised expression type is done in separate evaluator. For example, the function application is recognised in [Evaluator](src/Evaluator.hs):
+Evaluation is implemented in [Evaluator](src/Evaluator.hs) which heavily relies on pattern matching over possible expression types of [Ast](src/Ast.hs). Usually, the expression type is detected in [Evaluator](src/Evaluator.hs) and the evaluation of recognised expression type is done in separate evaluator. 
+
+For example, the function application is recognised in [Evaluator](src/Evaluator.hs):
 ```haskell
 eval :: LispVal -> EvalMonad LispVal
 eval expr@(List (head : args)) = Application.eval expr eval
@@ -253,13 +256,13 @@ eval expr@(List (func : args)) evaluate = do
 This logic applies to majority of language constructs implemented.
 ### Testing
 
-Testing is done using unit tests written in [HSpec] framework. 
-Test cases test a variety of language constructs and are taken from [Berkeley's Structure and Interpretation of Computer Programs course](https://inst.eecs.berkeley.edu/~cs61a/sp20/). However, most of those tests are taken from a few books:
- - The Little Schemer
- - Structure and Interpretation of Computer Programs
+Testing is done using unit tests written in [HSpec](https://hspec.github.io/) framework. 
+Test cases test a variety of language constructs and are taken from [Berkeley's Structure and Interpretation of Computer Programs course](https://inst.eecs.berkeley.edu/~cs61a/sp20/). However, most of those tests are taken from the following books:
+ - [The Little Schemer](https://mitpress.mit.edu/books/little-schemer-fourth-edition)
+ - [Structure and Interpretation of Computer Programs](https://mitpress.mit.edu/sites/default/files/sicp/full-text/book/book.html)
 
-You can see tests and specifications in the **test** folder.
-Usually, there is a scheme source code file containing a sequence of operations which is loaded into the unit testing module. The output of interpreter is compared with hardcoded expected test case outputs.
+Tests and test specifications are in the **test** folder.
+Usually, there is a scheme source code file containing a sequence of operations which is loaded into the unit testing module. The output of interpreter is compared against the hardcoded expected test case outputs.
 
 A good example is the fibonacci recursion test.
 > [Fibonacci input file written in Scheme (fib.scm)](test/tests/recursions/fib.scm)
@@ -320,6 +323,8 @@ You should see:
 To load scheme source files into the REPL, use ``(load "{path to source file}")``.
 
 To exit REPL type ```(quit)```.
+
+To run tests, execute ```stack test``` in the root folder.
 
 ## Possible improvements
 - Enhance lexer and parser error description (not too difficult)
